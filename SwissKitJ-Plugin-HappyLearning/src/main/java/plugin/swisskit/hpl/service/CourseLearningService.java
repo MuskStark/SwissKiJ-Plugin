@@ -1,7 +1,8 @@
 package plugin.swisskit.hpl.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import fan.summer.api.log.LoggerFactory;
+import fan.summer.api.log.PluginLogger;
 import plugin.swisskit.hpl.dto.*;
 import plugin.swisskit.hpl.util.ConfigLoader;
 import plugin.swisskit.hpl.util.WebUtil;
@@ -11,6 +12,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+
+import static plugin.swisskit.hpl.util.WebUtil.toMultiValueMap;
 
 /**
  * Course learning service - handles all course learning operations.
@@ -30,7 +33,7 @@ import java.util.*;
  */
 public class CourseLearningService {
 
-    private static final Logger log = LoggerFactory.getLogger(CourseLearningService.class);
+    private static final PluginLogger log = LoggerFactory.getLogger(CourseLearningService.class);
 
     /**
      * Query service for fetching course, person, and lesson information from the server.
@@ -708,19 +711,6 @@ public class CourseLearningService {
         } else {
             throw new RuntimeException("Unsupported lesson type: " + lessonType);
         }
-    }
-
-    /**
-     * Converts Map&lt;String, String&gt; to Map&lt;String, List&lt;String&gt;&gt;
-     * as required by WebUtil for HTTP headers.
-     *
-     * @param source Map with single values
-     * @return Map with values wrapped in lists
-     */
-    private Map<String, List<String>> toMultiValueMap(Map<String, String> source) {
-        Map<String, List<String>> result = new LinkedHashMap<>();
-        source.forEach((k, v) -> result.put(k, List.of(v)));
-        return result;
     }
 
     /**

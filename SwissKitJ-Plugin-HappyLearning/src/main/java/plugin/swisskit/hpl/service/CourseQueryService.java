@@ -1,7 +1,7 @@
 package plugin.swisskit.hpl.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import fan.summer.api.log.LoggerFactory;
+import fan.summer.api.log.PluginLogger;
 import plugin.swisskit.hpl.dto.*;
 import plugin.swisskit.hpl.util.ConfigLoader;
 import plugin.swisskit.hpl.util.WebUtil;
@@ -9,6 +9,8 @@ import plugin.swisskit.hpl.util.WebUtil;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static plugin.swisskit.hpl.util.WebUtil.toMultiValueMap;
 
 /**
  * Course query service - handles all course and personal info query operations.
@@ -19,7 +21,7 @@ import java.util.Map;
  */
 public class CourseQueryService {
 
-    private static final Logger log = LoggerFactory.getLogger(CourseQueryService.class);
+    private static final PluginLogger log = LoggerFactory.getLogger(CourseQueryService.class);
 
     /**
      * Query personal learning info
@@ -91,14 +93,5 @@ public class CourseQueryService {
                 ConfigLoader.rawUrl("baseUrl"),
                 ConfigLoader.rawUrl("lessonList"),
                 headers, params, LessonSearchResp.class);
-    }
-
-    /**
-     * Convert Map&lt;String, String&gt; to Map&lt;String, List&lt;String&gt;&gt; required by WebUtil
-     */
-    private Map<String, List<String>> toMultiValueMap(Map<String, String> source) {
-        Map<String, List<String>> result = new LinkedHashMap<>();
-        source.forEach((k, v) -> result.put(k, List.of(v)));
-        return result;
     }
 }

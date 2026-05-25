@@ -13,6 +13,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -29,6 +30,14 @@ import java.util.zip.GZIPInputStream;
  * @Date 2025/10/23
  */
 public abstract class WebUtil {
+
+    // -------------------------  Header Utils  -------------------------
+
+    public static Map<String, List<String>> toMultiValueMap(Map<String, String> source) {
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        source.forEach((k, v) -> result.put(k, List.of(v)));
+        return result;
+    }
 
     // -------------------------  Cookie Utils  -------------------------
 
