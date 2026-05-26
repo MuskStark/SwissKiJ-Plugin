@@ -65,6 +65,16 @@ public class HappyLearnPlugin implements SwissKitJPlugin {
     }
 
     @Override
+    public boolean hasRunningTasks() {
+        return HappyLearningService.getInstance().isRunning();
+    }
+
+    @Override
+    public void onBackground() {
+        if (ui != null) ui.suspendUi();
+    }
+
+    @Override
     public void onUnload() {
         HappyLearningService.getInstance().stopLearning();
     }
