@@ -14,7 +14,7 @@
     <modules>
         <module>SwissKitJ-Plugin-HappyLearning</module>
         <module>SwissKitJ-Plugin-Qcc</module>
-        <module>SwissKit-Plugin-Mouse</module>
+        <module>SwissKitJ-Plugin-KeepAwake</module>
     </modules>
 
 </project>

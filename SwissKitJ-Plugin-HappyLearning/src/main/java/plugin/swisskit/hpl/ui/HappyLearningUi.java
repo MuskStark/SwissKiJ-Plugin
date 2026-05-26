@@ -10,6 +10,7 @@ import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -31,38 +32,41 @@ public class HappyLearningUi {
 
     private static final PluginLogger log = LoggerFactory.getLogger(HappyLearningUi.class);
 
-    private final VBox root;
-    private final HappyLearningService service = new HappyLearningService();
+    private static final String BG = "#1a1a2e";
+    private static final String CARD_BG = "#16213e";
+    private static final String ACCENT = "#e2b714";
+    private static final String ACCENT_GREEN = "#00e676";
+    private static final String ACCENT_RED = "#ff5252";
+    private static final String ACCENT_BLUE = "#42a5f5";
+    private static final String TEXT_DIM = "#8892b0";
+    private static final String TEXT_BRIGHT = "#ccd6f6";
+    private static final String DIVIDER = "#233554";
 
-    // Config section
-    private final Label configFileLabel = new Label();
+    private final HappyLearningService service = HappyLearningService.getInstance();
+    private final VBox root = new VBox();
+
+    // Config
     private final TextField configFilePathField = new TextField();
     private final Button uploadButton = new Button();
 
-    // PassKey section
-    private final Label passKeyLabel = new Label();
+    // PassKey
     private final TextField passKeyField = new TextField();
     private final Button setPassKeyButton = new Button();
 
-    // Progress section
-    private final Label majorProgressTitle = new Label();
+    // Progress
     private final ProgressBar majorProgressBar = new ProgressBar(0);
-    private final Label majorProgressPercent = new Label("0%");
-    private final Label majorProgressDetail = new Label("0/0 h");
-
-    private final Label electiveProgressTitle = new Label();
+    private final Label majorPercentLabel = new Label("0%");
+    private final Label majorDetailLabel = new Label("0/0 h");
     private final ProgressBar electiveProgressBar = new ProgressBar(0);
-    private final Label electiveProgressPercent = new Label("0%");
-    private final Label electiveProgressDetail = new Label("0/0 h");
+    private final Label electivePercentLabel = new Label("0%");
+    private final Label electiveDetailLabel = new Label("0/0 h");
 
-    // Current course card
-    private final Label currentCourseTitle = new Label();
-    private final Label courseNameValue = new Label("-");
-    private final Label courseIdValue = new Label("-");
-    private final Label courseHoursValue = new Label("-");
-    private final VBox currentCourseCard = new VBox(6);
+    // Current course
+    private final Label courseNameValue = new Label("—");
+    private final Label courseIdValue = new Label("—");
+    private final Label courseHoursValue = new Label("—");
 
-    // Control section
+    // Controls
     private final Button startButton = new Button();
     private final Button stopButton = new Button();
     private final Button skipButton = new Button();
@@ -71,27 +75,95 @@ public class HappyLearningUi {
 
     // Status
     private final Label statusLabel = new Label();
+    private final HBox dotIndicator = new HBox(4);
 
-    // State
-    private String key;
-    private Task<Void> currentTask;
+    // Timers
     private Timeline progressTimeline;
-    private int majorGoal;
-    private int electiveGoal;
-    private String currentStatusKey;
+    private Timeline blinkTimer;
 
     public HappyLearningUi() {
-        this.root = new VBox(12);
         initComponents();
+    }
 
-        configFilePathField.setEditable(false);
-        stopButton.setDisable(true);
-        skipButton.setDisable(true);
+    public Node getView() {
+        return root;
+    }
 
-        Path configFile = Path.of(ConfigLoader.CONFIG_DIR, "netschool-headers.json");
-        if (configFile.toFile().exists()) {
-            configFilePathField.setText(configFile.toAbsolutePath().toString());
+    public void suspendUi() {
+        if (progressTimeline != null) { progressTimeline.stop(); progressTimeline = null; }
+        if (blinkTimer != null) { blinkTimer.stop(); blinkTimer = null; }
+    }
+
+    public void resumeUi() {
+        syncUiState();
+        if (service.isRunning()) {
+            startProgressPolling();
+            startBlink();
         }
+    }
+
+    private void initComponents() {
+        root.setStyle("-fx-background-color: " + BG + "; -fx-background-radius: 8;");
+        root.setPadding(new Insets(18));
+        root.setSpacing(0);
+        root.setFillWidth(true);
+
+        String p = "plugin.hpl.";
+
+        // ── Header ──
+        Label header = new Label("✈  HAPPY LEARNING BOARD");
+        header.setStyle("-fx-text-fill: " + ACCENT + "; -fx-font-size: 14px;"
+                + " -fx-font-weight: bold; -fx-font-family: 'Menlo', 'Consolas', monospace;");
+        header.setMaxWidth(Double.MAX_VALUE);
+        header.setAlignment(Pos.CENTER);
+        header.setPadding(new Insets(0, 0, 10, 0));
+
+        // ── Config Section ──
+        configFilePathField.setEditable(false);
+        styleTextField(configFilePathField);
+        styleSmallButton(uploadButton, ACCENT);
+        I18n.bind(uploadButton.textProperty(), p + "uploadConfig");
+
+        BoardRow configRow = new BoardRow("CONFIG");
+        configRow.setValueNode(configFilePathField, uploadButton);
+
+        // ── PassKey Section ──
+        styleTextField(passKeyField);
+        styleSmallButton(setPassKeyButton, ACCENT);
+        I18n.bind(setPassKeyButton.textProperty(), p + "setPassKey");
+
+        BoardRow passKeyRow = new BoardRow("PASSKEY");
+        passKeyRow.setValueNode(passKeyField, setPassKeyButton);
+
+        // ── Progress Section ──
+        VBox progressBox = new VBox(4);
+        progressBox.setPadding(new Insets(4, 0, 4, 0));
+
+        progressBox.getChildren().addAll(
+                buildProgressRow("MAJOR  ", majorProgressBar, majorPercentLabel, majorDetailLabel),
+                divider(),
+                buildProgressRow("ELECTIVE", electiveProgressBar, electivePercentLabel, electiveDetailLabel)
+        );
+
+        // ── Current Course Section ──
+        VBox courseBox = new VBox(2);
+        courseBox.setPadding(new Insets(2, 0, 2, 0));
+        courseBox.getChildren().addAll(
+                courseRow("COURSE ", courseNameValue),
+                courseRow("ID     ", courseIdValue),
+                courseRow("HOURS  ", courseHoursValue)
+        );
+
+        // ── Status + Dot Indicator ──
+        statusLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;");
+        dotIndicator.setAlignment(Pos.CENTER_LEFT);
+        dotIndicator.setPadding(new Insets(4, 0, 0, 0));
+
+        // ── Controls ──
+        styleCheckBox(onlyMajorCheckBox);
+        styleCheckBox(onlyElectiveCheckBox);
+        I18n.bind(onlyMajorCheckBox.textProperty(), p + "onlyMajorSubject");
+        I18n.bind(onlyElectiveCheckBox.textProperty(), p + "onlyElectiveSubject");
 
         onlyMajorCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal) onlyElectiveCheckBox.setSelected(false);
@@ -99,196 +171,195 @@ public class HappyLearningUi {
         onlyElectiveCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal) onlyMajorCheckBox.setSelected(false);
         });
-    }
 
-    public Node getView() {
-        return root;
-    }
+        styleButton(startButton, ACCENT, BG);
+        styleButton(stopButton, ACCENT_RED, "#fff");
+        styleButton(skipButton, TEXT_DIM, BG);
+        I18n.bind(startButton.textProperty(), p + "startHappy");
+        I18n.bind(stopButton.textProperty(), p + "unHappy");
+        I18n.bind(skipButton.textProperty(), p + "skipClass");
 
-    private void initComponents() {
-        root.setPadding(new Insets(16));
-        root.setFillWidth(true);
-
-        String p = "plugin.hpl.";
-
-        // === Config Section ===
-        VBox configSection = createSection(
-                new Label("⚙"), configFileLabel,
-                createInputRow(configFilePathField, uploadButton)
-        );
-
-        // === PassKey Section ===
-        VBox passKeySection = createSection(
-                new Label("🔑"), passKeyLabel,
-                createInputRow(passKeyField, setPassKeyButton)
-        );
-
-        // === Progress Section ===
-        VBox progressSection = new VBox(10);
-
-        Label progressHeader = new Label();
-        I18n.bind(progressHeader.textProperty(), p + "progressTitle");
-        progressHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
-        progressSection.getChildren().add(progressHeader);
-
-        // Major progress card
-        I18n.bind(majorProgressTitle.textProperty(), p + "majorSubject");
-        majorProgressTitle.setStyle("-fx-font-weight: bold;");
-        VBox majorCard = createProgressCard(majorProgressTitle, majorProgressBar,
-                majorProgressPercent, majorProgressDetail);
-        progressSection.getChildren().add(majorCard);
-
-        // Elective progress card
-        I18n.bind(electiveProgressTitle.textProperty(), p + "electiveSubject");
-        electiveProgressTitle.setStyle("-fx-font-weight: bold;");
-        VBox electiveCard = createProgressCard(electiveProgressTitle, electiveProgressBar,
-                electiveProgressPercent, electiveProgressDetail);
-        progressSection.getChildren().add(electiveCard);
-
-        // === Current Course Card ===
-        VBox courseSection = new VBox(8);
-        I18n.bind(currentCourseTitle.textProperty(), p + "currentCourse");
-        currentCourseTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
-        courseSection.getChildren().add(currentCourseTitle);
-
-        currentCourseCard.setPadding(new Insets(10, 14, 10, 14));
-        currentCourseCard.setStyle("-fx-background-color: derive(-fx-background, -5%);"
-                + "-fx-background-radius: 6; -fx-border-color: derive(-fx-background, -15%);"
-                + "-fx-border-radius: 6; -fx-border-width: 1;");
-
-        Label nameLabel = new Label();
-        I18n.bind(nameLabel.textProperty(), p + "subjectName");
-        nameLabel.setStyle("-fx-text-fill: derive(-fx-text-background-color, -30%);");
-        courseNameValue.setStyle("-fx-font-size: 13px; -fx-font-weight: bold;");
-
-        Label idLabel = new Label();
-        I18n.bind(idLabel.textProperty(), p + "subjectId");
-        idLabel.setStyle("-fx-text-fill: derive(-fx-text-background-color, -30%);");
-        courseIdValue.setStyle("-fx-font-size: 13px;");
-
-        Label hoursLabel = new Label();
-        I18n.bind(hoursLabel.textProperty(), p + "classHours");
-        hoursLabel.setStyle("-fx-text-fill: derive(-fx-text-background-color, -30%);");
-        courseHoursValue.setStyle("-fx-font-size: 13px;");
-
-        currentCourseCard.getChildren().addAll(
-                nameRow(nameLabel, courseNameValue),
-                nameRow(idLabel, courseIdValue),
-                nameRow(hoursLabel, courseHoursValue)
-        );
-        courseSection.getChildren().add(currentCourseCard);
-
-        // === Control Section ===
-        VBox controlSection = new VBox(8);
-        controlSection.setAlignment(Pos.CENTER);
-
-        HBox checkboxRow = new HBox(16, onlyMajorCheckBox, onlyElectiveCheckBox);
+        HBox checkboxRow = new HBox(14, onlyMajorCheckBox, onlyElectiveCheckBox);
         checkboxRow.setAlignment(Pos.CENTER);
-        controlSection.getChildren().add(checkboxRow);
 
-        HBox buttonRow = new HBox(10, startButton, stopButton, skipButton);
+        HBox buttonRow = new HBox(8, startButton, stopButton, skipButton);
         buttonRow.setAlignment(Pos.CENTER);
-        controlSection.getChildren().add(buttonRow);
 
-        // === Status ===
-        statusLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: derive(-fx-text-background-color, -30%);");
-        statusLabel.setAlignment(Pos.CENTER);
-        statusLabel.setMaxWidth(Double.MAX_VALUE);
+        VBox controlBox = new VBox(6, checkboxRow, buttonRow);
+        controlBox.setAlignment(Pos.CENTER);
+        controlBox.setPadding(new Insets(8, 0, 0, 0));
 
-        // Assemble
-        root.getChildren().addAll(
-                configSection,
-                new Separator(),
-                passKeySection,
-                new Separator(),
-                progressSection,
-                new Separator(),
-                courseSection,
-                new Separator(),
-                controlSection,
-                statusLabel
+        // ── Assemble board card ──
+        VBox board = new VBox();
+        board.setStyle("-fx-background-color: " + CARD_BG + "; -fx-background-radius: 6;");
+        board.setPadding(new Insets(12, 14, 12, 14));
+        board.setSpacing(2);
+        board.getChildren().addAll(
+                configRow, divider(),
+                passKeyRow, divider(),
+                progressBox, divider(),
+                courseBox, divider(),
+                statusLabel, dotIndicator
         );
 
-        // Button actions
+        root.getChildren().addAll(header, board, controlBox);
+
+        // ── Button actions ──
         uploadButton.setOnAction(e -> handleUpload());
         setPassKeyButton.setOnAction(e -> handleSetPassKey());
         startButton.setOnAction(e -> handleStart());
         stopButton.setOnAction(e -> handleStop());
         skipButton.setOnAction(e -> handleSkip());
 
-        // Bind i18n
-        I18n.bind(configFileLabel.textProperty(), p + "configFile");
-        I18n.bind(uploadButton.textProperty(), p + "uploadConfig");
-        I18n.bind(passKeyLabel.textProperty(), p + "passKey");
-        I18n.bind(setPassKeyButton.textProperty(), p + "setPassKey");
-        I18n.bind(onlyMajorCheckBox.textProperty(), p + "onlyMajorSubject");
-        I18n.bind(onlyElectiveCheckBox.textProperty(), p + "onlyElectiveSubject");
-        I18n.bind(startButton.textProperty(), p + "startHappy");
-        I18n.bind(stopButton.textProperty(), p + "unHappy");
-        I18n.bind(skipButton.textProperty(), p + "skipClass");
+        // ── Check existing config ──
+        Path configFile = Path.of(ConfigLoader.CONFIG_DIR, "netschool-headers.json");
+        if (configFile.toFile().exists()) {
+            configFilePathField.setText(configFile.toAbsolutePath().toString());
+        }
 
-        currentStatusKey = p + "idle";
+        // ── Sync with singleton state ──
+        syncUiState();
         I18n.addListener(this::refreshStatusLabel);
         refreshStatusLabel();
     }
 
-    private HBox createInputRow(TextField field, Button button) {
-        HBox row = new HBox(8, field, button);
+    // ==================== UI Builders ====================
+
+    private HBox buildProgressRow(String key, ProgressBar bar, Label percentLabel, Label detailLabel) {
+        HBox row = new HBox();
         row.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(field, Priority.ALWAYS);
-        return row;
-    }
+        row.setPadding(new Insets(4, 0, 4, 0));
 
-    private VBox createSection(Node icon, Label titleLabel, HBox contentRow) {
-        VBox section = new VBox(4);
-        HBox header = new HBox(6, icon, titleLabel);
-        header.setAlignment(Pos.CENTER_LEFT);
-        titleLabel.setStyle("-fx-font-weight: bold;");
-        section.getChildren().addAll(header, contentRow);
-        return section;
-    }
+        Label keyLabel = new Label(key);
+        keyLabel.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
+                + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
+                + " -fx-font-size: 11px; -fx-font-weight: bold;");
+        keyLabel.setMinWidth(85);
 
-    private VBox createProgressCard(Label title, ProgressBar bar,
-                                    Label percentLabel, Label detailLabel) {
-        VBox card = new VBox(4);
-        card.setPadding(new Insets(8, 12, 8, 12));
-        card.setStyle("-fx-background-color: derive(-fx-background, -3%);"
-                + "-fx-background-radius: 5;");
+        Label sep = new Label(" │ ");
+        sep.setStyle("-fx-text-fill: " + DIVIDER + "; -fx-font-family: monospace; -fx-font-size: 11px;");
 
-        HBox titleRow = new HBox(8, title, detailLabel);
-        titleRow.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(title, Priority.ALWAYS);
-        detailLabel.setStyle("-fx-text-fill: derive(-fx-text-background-color, -25%); -fx-font-size: 11px;");
-
+        bar.setPrefHeight(12);
         bar.setMaxWidth(Double.MAX_VALUE);
-        bar.setPrefHeight(14);
-
-        HBox barRow = new HBox(bar);
+        bar.setStyle("-fx-accent: " + ACCENT_BLUE + ";");
         HBox.setHgrow(bar, Priority.ALWAYS);
 
-        card.getChildren().addAll(titleRow, barRow);
-        StackPane percentOverlay = new StackPane(bar, percentLabel);
-        percentLabel.setStyle("-fx-font-size: 10px; -fx-font-weight: bold;"
-                + "-fx-text-fill: white; -fx-effect: dropshadow(gaussian, black, 1, 0.8, 0, 0);");
-        HBox.setHgrow(percentOverlay, Priority.ALWAYS);
-        card.getChildren().set(1, percentOverlay);
+        percentLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace;"
+                + " -fx-font-size: 10px; -fx-font-weight: bold;"
+                + " -fx-text-fill: " + ACCENT + ";");
+        percentLabel.setMinWidth(36);
+        percentLabel.setAlignment(Pos.CENTER_RIGHT);
 
-        return card;
+        detailLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace;"
+                + " -fx-font-size: 10px; -fx-text-fill: " + TEXT_DIM + ";");
+        detailLabel.setMinWidth(65);
+
+        StackPane barOverlay = new StackPane(bar, percentLabel);
+        percentLabel.setStyle("-fx-font-size: 10px; -fx-font-weight: bold;"
+                + " -fx-text-fill: white; -fx-effect: dropshadow(gaussian, black, 1, 0.8, 0, 0);");
+        HBox.setHgrow(barOverlay, Priority.ALWAYS);
+
+        row.getChildren().addAll(keyLabel, sep, barOverlay, new Label(" "), detailLabel);
+        return row;
     }
 
-    private HBox nameRow(Label label, Node value) {
-        HBox row = new HBox(8, label, value);
+    private HBox courseRow(String key, Label value) {
+        HBox row = new HBox();
         row.setAlignment(Pos.CENTER_LEFT);
+        row.setPadding(new Insets(3, 0, 3, 0));
+
+        Label keyLabel = new Label(key);
+        keyLabel.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
+                + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
+                + " -fx-font-size: 11px; -fx-font-weight: bold;");
+        keyLabel.setMinWidth(85);
+
+        Label sep = new Label(" │ ");
+        sep.setStyle("-fx-text-fill: " + DIVIDER + "; -fx-font-family: monospace; -fx-font-size: 11px;");
+
+        value.setStyle("-fx-text-fill: " + TEXT_BRIGHT + ";"
+                + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 12px;");
+        HBox.setHgrow(value, Priority.ALWAYS);
+
+        row.getChildren().addAll(keyLabel, sep, value);
         return row;
+    }
+
+    private Node divider() {
+        Region d = new Region();
+        d.setStyle("-fx-background-color: " + DIVIDER + ";");
+        d.setPrefHeight(1);
+        VBox.setMargin(d, new Insets(4, 0, 4, 0));
+        return d;
+    }
+
+    // ==================== Style Helpers ====================
+
+    private void styleTextField(TextField field) {
+        field.setStyle("-fx-background-color: #0f3460; -fx-text-fill: " + TEXT_BRIGHT + ";"
+                + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
+                + " -fx-background-radius: 3; -fx-padding: 4 8 4 8;"
+                + " -fx-border-color: " + DIVIDER + "; -fx-border-radius: 3;");
+    }
+
+    private void styleSmallButton(Button btn, String color) {
+        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: " + BG + ";"
+                + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 10px;"
+                + " -fx-font-weight: bold; -fx-background-radius: 3; -fx-padding: 4 12 4 12;");
+        btn.setCursor(Cursor.HAND);
+    }
+
+    private void styleButton(Button btn, String bgColor, String textColor) {
+        btn.setStyle("-fx-background-color: " + bgColor + ";"
+                + " -fx-text-fill: " + textColor + ";"
+                + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
+                + " -fx-font-size: 11px; -fx-font-weight: bold;"
+                + " -fx-background-radius: 4; -fx-padding: 6 20 6 20;");
+        btn.setCursor(Cursor.HAND);
+    }
+
+    private void styleCheckBox(CheckBox cb) {
+        cb.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
+                + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 10px;");
+    }
+
+    // ==================== State Sync ====================
+
+    private void syncUiState() {
+        if (service.isRunning()) {
+            startButton.setDisable(true);
+            stopButton.setDisable(false);
+            skipButton.setDisable(false);
+        } else {
+            startButton.setDisable(false);
+            stopButton.setDisable(true);
+            skipButton.setDisable(true);
+        }
+        refreshStatusLabel();
+        refreshDotIndicator();
+
+        // Restore key if set
+        if (service.getKey() != null) {
+            passKeyField.setText(service.getKey());
+        }
     }
 
     private void refreshStatusLabel() {
-        statusLabel.setText(I18n.get("plugin.hpl.learningStatus") + ": " + I18n.get(currentStatusKey));
+        String statusText = I18n.get("plugin.hpl.learningStatus") + ": " + I18n.get(service.getCurrentStatusKey());
+        statusLabel.setText(statusText);
+        statusLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
+                + " -fx-text-fill: " + (service.isRunning() ? ACCENT_GREEN : TEXT_DIM) + ";");
     }
 
-    private void setStatus(String statusKey) {
-        this.currentStatusKey = statusKey;
-        refreshStatusLabel();
+    private void refreshDotIndicator() {
+        dotIndicator.getChildren().clear();
+        if (!service.isRunning()) return;
+
+        Label dot = new Label("●");
+        dot.setStyle("-fx-text-fill: " + ACCENT_GREEN + "; -fx-font-size: 10px;");
+        Label label = new Label(" IN FLIGHT");
+        label.setStyle("-fx-text-fill: " + ACCENT_GREEN + "; -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 10px;");
+        dotIndicator.getChildren().addAll(dot, label);
     }
 
     // ==================== Event Handlers ====================
@@ -329,18 +400,19 @@ public class HappyLearningUi {
             showAlert(Alert.AlertType.ERROR, I18n.get("plugin.hpl.passkeyEmpty"));
             return;
         }
-        this.key = text;
+        service.setKey(text);
         showAlert(Alert.AlertType.INFORMATION, I18n.get("plugin.hpl.passkeySuccess"));
         log.info("[UI] Passkey set successfully");
     }
 
     private void handleStart() {
-        if (currentTask != null && !currentTask.isDone()) {
+        if (service.isRunning()) {
             log.warn("[UI] Start clicked but learning is already running");
             showAlert(Alert.AlertType.INFORMATION, I18n.get("plugin.hpl.learningAlreadyRunning"));
             return;
         }
 
+        String key = service.getKey();
         if (key == null || key.isEmpty()) {
             log.warn("[UI] Start clicked but passkey is not set");
             showAlert(Alert.AlertType.WARNING, I18n.get("plugin.hpl.pleaseSetPasskey"));
@@ -378,8 +450,7 @@ public class HappyLearningUi {
                 return;
             }
             PeriodDataRU period = resp.getData().getPeriodDataRU();
-            majorGoal = period.getGroupLearningGoal().intValue();
-            electiveGoal = period.getSelfLearningGoal().intValue();
+            service.setGoals(period);
             updateProgressDisplay(period);
         } catch (Exception e) {
             log.error("Failed to initialize progress", e);
@@ -387,87 +458,81 @@ public class HappyLearningUi {
             return;
         }
 
-        String finalLessonType = lessonType;
-        String finalToken = token;
-        currentTask = new Task<Void>() {
-            @Override
-            protected Void call() throws Exception {
-                Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-                service.autoLearning(finalLessonType, finalToken, key);
-                return null;
-            }
-        };
-
-        currentTask.setOnSucceeded(e -> {
-            stopProgressPolling();
-            resetButtons();
-            setStatus("plugin.hpl.completed");
-            pollProgress(finalToken);
-            log.info("[UI] Learning task completed successfully");
-        });
-
-        currentTask.setOnFailed(e -> {
-            stopProgressPolling();
-            resetButtons();
-            Throwable ex = currentTask.getException();
-            log.error("[UI] Learning task failed", ex);
-            setStatus("plugin.hpl.error");
-            showAlert(Alert.AlertType.ERROR,
-                    I18n.get("plugin.hpl.learningFailed") + ": " + (ex != null ? ex.getMessage() : I18n.get("plugin.hpl.unknownError")));
-        });
-
-        currentTask.setOnCancelled(e -> {
-            stopProgressPolling();
-            resetButtons();
-            setStatus("plugin.hpl.stopped");
-            pollProgress(finalToken);
-            log.info("[UI] Learning task cancelled by user");
-        });
-
-        // Poll progress every 10 seconds for responsive updates
-        progressTimeline = new Timeline(new KeyFrame(Duration.seconds(10), e -> {
-            pollProgress(finalToken);
-        }));
-        progressTimeline.setCycleCount(Timeline.INDEFINITE);
-        progressTimeline.play();
+        service.startLearning(lessonType, token);
 
         startButton.setDisable(true);
         stopButton.setDisable(false);
         skipButton.setDisable(false);
-        setStatus("plugin.hpl.learning");
 
-        Thread thread = new Thread(currentTask, "HappyLearning-Worker");
-        thread.setDaemon(true);
-        thread.start();
+        startProgressPolling();
+        startBlink();
+        refreshStatusLabel();
+        refreshDotIndicator();
 
         log.info("[UI] Learning task started, lessonType: {}", lessonType);
     }
 
     private void handleStop() {
-        if (currentTask != null && !currentTask.isDone()) {
-            log.info("[UI] Stop button clicked, cancelling task");
-            currentTask.cancel(true);
-        }
+        service.stopLearning();
     }
 
     private void handleSkip() {
-        if (currentTask != null && !currentTask.isDone()) {
+        if (service.isRunning()) {
             service.setSkipSignal(true);
         }
     }
 
-    // ==================== Progress ====================
+    // ==================== Progress Polling ====================
 
-    private void pollProgress(String token) {
+    private void startProgressPolling() {
+        stopProgressPolling();
+        progressTimeline = new Timeline(new KeyFrame(Duration.seconds(10), e -> {
+            pollProgress();
+            // Check if task finished while we were away
+            if (!service.isRunning()) {
+                stopProgressPolling();
+                stopBlink();
+                syncUiState();
+            }
+        }));
+        progressTimeline.setCycleCount(Timeline.INDEFINITE);
+        progressTimeline.play();
+    }
+
+    private void stopProgressPolling() {
+        if (progressTimeline != null) { progressTimeline.stop(); progressTimeline = null; }
+    }
+
+    private void startBlink() {
+        stopBlink();
+        blinkTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> toggleDot()));
+        blinkTimer.setCycleCount(Timeline.INDEFINITE);
+        blinkTimer.play();
+    }
+
+    private void stopBlink() {
+        if (blinkTimer != null) { blinkTimer.stop(); blinkTimer = null; }
+    }
+
+    private void toggleDot() {
+        if (dotIndicator.getChildren().isEmpty()) return;
+        Label dot = (Label) dotIndicator.getChildren().getFirst();
+        boolean on = dot.getStyle().contains(ACCENT_GREEN);
+        dot.setStyle("-fx-text-fill: " + (on ? CARD_BG : ACCENT_GREEN) + "; -fx-font-size: 10px;");
+    }
+
+    private void pollProgress() {
+        String token = service.getToken();
+        if (token == null) return;
+
         Task<Void> pollTask = new Task<>() {
             @Override
             protected Void call() {
                 try {
-                    UserSearchResp resp = service.getPersonInfo(key, token);
+                    UserSearchResp resp = service.getPersonInfo(service.getKey(), token);
                     if (resp == null || resp.getData() == null) return null;
 
                     PeriodDataRU period = resp.getData().getPeriodDataRU();
-
                     Long lessonId = service.getCurrentLessonId();
                     String lessonName = service.getCurrentLessonName();
                     Float classHours = service.getClassHours();
@@ -492,53 +557,30 @@ public class HappyLearningUi {
     private void updateProgressDisplay(PeriodDataRU period) {
         int majorCurrent = period.getGroupLearningTotal().intValue();
         int electiveCurrent = period.getSelfLearningTotal().intValue();
+        int majorGoal = service.getMajorGoal();
+        int electiveGoal = service.getElectiveGoal();
 
         double majorPct = majorGoal > 0 ? (double) majorCurrent / majorGoal : 0;
-        majorProgressBar.setProgress(majorPct);
-        majorProgressPercent.setText((int) (majorPct * 100) + "%");
-        majorProgressDetail.setText(majorCurrent + "/" + majorGoal + " h");
-
-        // Color the bar based on completion
-        if (majorPct >= 1.0) {
-            majorProgressBar.setStyle("-fx-accent: #4caf50;");
-        } else if (majorPct >= 0.7) {
-            majorProgressBar.setStyle("-fx-accent: #66bb6a;");
-        } else if (majorPct >= 0.3) {
-            majorProgressBar.setStyle("-fx-accent: #42a5f5;");
-        } else {
-            majorProgressBar.setStyle(null);
-        }
+        majorProgressBar.setProgress(Math.min(majorPct, 1.0));
+        majorPercentLabel.setText((int) (majorPct * 100) + "%");
+        majorDetailLabel.setText(majorCurrent + "/" + majorGoal + " h");
+        majorProgressBar.setStyle("-fx-accent: " + progressColor(majorPct) + ";");
 
         double electivePct = electiveGoal > 0 ? (double) electiveCurrent / electiveGoal : 0;
-        electiveProgressBar.setProgress(electivePct);
-        electiveProgressPercent.setText((int) (electivePct * 100) + "%");
-        electiveProgressDetail.setText(electiveCurrent + "/" + electiveGoal + " h");
+        electiveProgressBar.setProgress(Math.min(electivePct, 1.0));
+        electivePercentLabel.setText((int) (electivePct * 100) + "%");
+        electiveDetailLabel.setText(electiveCurrent + "/" + electiveGoal + " h");
+        electiveProgressBar.setStyle("-fx-accent: " + progressColor(electivePct) + ";");
+    }
 
-        if (electivePct >= 1.0) {
-            electiveProgressBar.setStyle("-fx-accent: #4caf50;");
-        } else if (electivePct >= 0.7) {
-            electiveProgressBar.setStyle("-fx-accent: #66bb6a;");
-        } else if (electivePct >= 0.3) {
-            electiveProgressBar.setStyle("-fx-accent: #42a5f5;");
-        } else {
-            electiveProgressBar.setStyle(null);
-        }
+    private String progressColor(double pct) {
+        if (pct >= 1.0) return "#4caf50";
+        if (pct >= 0.7) return "#66bb6a";
+        if (pct >= 0.3) return ACCENT_BLUE;
+        return "#5c6bc0";
     }
 
     // ==================== Helpers ====================
-
-    private void resetButtons() {
-        startButton.setDisable(false);
-        stopButton.setDisable(true);
-        skipButton.setDisable(true);
-    }
-
-    private void stopProgressPolling() {
-        if (progressTimeline != null) {
-            progressTimeline.stop();
-            progressTimeline = null;
-        }
-    }
 
     private void showAlert(Alert.AlertType type, String message) {
         Alert alert = new Alert(type);
@@ -548,5 +590,31 @@ public class HappyLearningUi {
             if (scene != null) Themes.applyTo(scene);
         });
         alert.showAndWait();
+    }
+
+    private static class BoardRow extends HBox {
+        BoardRow(String key) {
+            setAlignment(Pos.CENTER_LEFT);
+            setPadding(new Insets(4, 0, 4, 0));
+            setSpacing(6);
+
+            Label keyLabel = new Label(key);
+            keyLabel.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
+                    + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
+                    + " -fx-font-size: 11px; -fx-font-weight: bold;");
+            keyLabel.setMinWidth(85);
+
+            Label sep = new Label(" │ ");
+            sep.setStyle("-fx-text-fill: " + DIVIDER + "; -fx-font-family: monospace; -fx-font-size: 11px;");
+
+            getChildren().addAll(keyLabel, sep);
+        }
+
+        void setValueNode(Node... nodes) {
+            for (Node n : nodes) {
+                if (n instanceof TextField tf) HBox.setHgrow(tf, Priority.ALWAYS);
+                getChildren().add(n);
+            }
+        }
     }
 }

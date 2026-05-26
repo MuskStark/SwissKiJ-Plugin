@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>plugin.swisskit</groupId>
-    <artifactId>SwissKitJ-Plugin-Qcc</artifactId>
-    <version>3.0.0</version>
+    <artifactId>SwissKitJ-Plugin-KeepAwake</artifactId>
+    <version>1.0.0</version>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -14,8 +14,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <javafx.version>21.0.2</javafx.version>
         <swisskit.api.version>3.0.0</swisskit.api.version>
-        <fesod.version>2.0.1-incubating</fesod.version>
-        <lombok.version>1.18.42</lombok.version>
     </properties>
 
     <dependencies>
@@ -41,18 +39,10 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Excel reading/writing -->
-        <dependency>
-            <groupId>org.apache.fesod</groupId>
-            <artifactId>fesod-sheet</artifactId>
-            <version>${fesod.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
+            <version>1.18.42</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -72,7 +62,7 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
+                            <version>1.18.42</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
@@ -126,7 +116,7 @@
                         <artifactId>javafx-maven-plugin</artifactId>
                         <version>0.0.8</version>
                         <configuration>
-                            <mainClass>plugin.swisskitj.DevLauncher</mainClass>
+                            <mainClass>plugin.swisskit.keepawake.DevLauncher</mainClass>
                         </configuration>
                     </plugin>
                 </plugins>

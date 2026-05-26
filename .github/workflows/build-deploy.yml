@@ -1,0 +1,154 @@
+name: Build & Deploy Plugins
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # ── 1. Checkout & Build SwissKitJ API ──────────────────────────────
+      - name: Checkout SwissKitJ
+        uses: actions/checkout@v4
+        with:
+          repository: MuskStark/SwissKitJ
+          path: SwissKitJ
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build & Install SwissKitJ API
+        run: |
+          cd SwissKitJ
+          mvn install -pl SwissKitJ-Api -am -DskipTests -B
+
+      # ── 2. Build Plugins ───────────────────────────────────────────────
+      - name: Checkout Plugins
+        uses: actions/checkout@v4
+
+      - name: Build Plugins
+        run: mvn clean package -DskipTests -B
+
+      # ── 3. Determine Release Tag ───────────────────────────────────────
+      - name: Set Release Tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="v$(date +'%Y%m%d-%H%M%S')"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${TAG}"
+
+      # ── 4. Create GitHub Release & Upload JARs ─────────────────────────
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Plugins ${{ steps.tag.outputs.tag }}
+          draft: false
+          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
+          files: |
+            SwissKitJ-Plugin-HappyLearning/target/*.jar
+            SwissKitJ-Plugin-KeepAwake/target/*.jar
+            SwissKitJ-Plugin-Qcc/target/*.jar
+
+      # ── 5. Generate plugins.json & Deploy Pages ────────────────────────
+      - name: Generate plugins.json
+        run: |
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+          RELEASE_URL="https://github.com/${OWNER}/${REPO}/releases/download/${TAG}"
+
+          # Extract versions from each module's pom.xml
+          HPL_VER=$(grep -m1 '<version>' SwissKitJ-Plugin-HappyLearning/pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d '[:space:]')
+          KA_VER=$(grep -m1 '<version>' SwissKitJ-Plugin-KeepAwake/pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d '[:space:]')
+          QCC_VER=$(grep -m1 '<version>' SwissKitJ-Plugin-Qcc/pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d '[:space:]')
+
+          # Resolve actual JAR filenames from shade output
+          HPL_JAR=$(basename SwissKitJ-Plugin-HappyLearning/target/*.jar)
+          KA_JAR=$(basename SwissKitJ-Plugin-KeepAwake/target/*.jar)
+          QCC_JAR=$(basename SwissKitJ-Plugin-Qcc/target/*.jar)
+
+          echo "Versions: HappyLearning=${HPL_VER}, KeepAwake=${KA_VER}, Qcc=${QCC_VER}"
+          echo "JARs: ${HPL_JAR}, ${KA_JAR}, ${QCC_JAR}"
+
+          mkdir -p pages
+
+          python3 -c "
+          import json
+          
+          
+          plugins = [
+              {
+                  'id': 'plugin.swisskit.hpl',
+                  'name': 'HappyLearn',
+                  'description': 'Auto learning for HappyLearning platform',
+                  'version': '${HPL_VER}',
+                  'jarUrl': '${RELEASE_URL}/${HPL_JAR}',
+                  'iconStyle': 'ic-blue',
+                  'category': 'other'
+              },
+              {
+                  'id': 'plugin.swisskit.keepawake',
+                  'name': 'KeepAwake',
+                  'description': 'Prevent screensaver and display sleep',
+                  'version': '${KA_VER}',
+                  'jarUrl': '${RELEASE_URL}/${KA_JAR}',
+                  'iconStyle': 'ic-purple',
+                  'category': 'other'
+              },
+              {
+                  'id': 'plugin.swisskit.qcc',
+                  'name': 'QccToExcel',
+                  'description': 'Convert Qichacha CSV data to styled Excel',
+                  'version': '${QCC_VER}',
+                  'jarUrl': '${RELEASE_URL}/${QCC_JAR}',
+                  'iconStyle': 'ic-teal',
+                  'category': 'dev'
+              }
+          ]
+
+          output = plugins
+          with open('pages/plugins.json', 'w', encoding='utf-8') as f:
+              json.dump(output, f, ensure_ascii=False, indent=2)
+
+          print(f'Generated plugins.json with {len(output)} entries')
+          "
+
+      - name: Verify output
+        run: cat pages/plugins.json
+
+      # ── 6. Deploy plugins.json to GitHub Pages ─────────────────────────
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,30 +1,30 @@
-package plugin.swisskit.hpl;
+package plugin.swisskit.keepawake;
 
 import fan.summer.api.IconStyle;
 import fan.summer.api.SwissKitJPlugin;
 import fan.summer.api.ToolCategory;
 import fan.summer.api.i18n.I18n;
 import javafx.scene.Node;
-import plugin.swisskit.hpl.service.HappyLearningService;
-import plugin.swisskit.hpl.ui.HappyLearningUi;
+import plugin.swisskit.keepawake.service.KeepAwakeService;
+import plugin.swisskit.keepawake.ui.KeepAwakeUi;
 
-public class HappyLearnPlugin implements SwissKitJPlugin {
+public class KeepAwakePlugin implements SwissKitJPlugin {
 
-    private HappyLearningUi ui;
+    private KeepAwakeUi ui;
 
     @Override
     public String getId() {
-        return "plugin.swisskit.hpl";
+        return "plugin.swisskit.keepawake";
     }
 
     @Override
     public String getName() {
-        return "HappyLearn";
+        return "KeepAwake";
     }
 
     @Override
     public String getDescription() {
-        return "HappyLearn";
+        return "Prevent screensaver and display sleep";
     }
 
     @Override
@@ -34,23 +34,23 @@ public class HappyLearnPlugin implements SwissKitJPlugin {
 
     @Override
     public String getVersion() {
-        return "v1.1.2";
+        return "1.0.0";
     }
 
     @Override
     public String getMdiIcon() {
-        return "school";
+        return "coffee";
     }
 
     @Override
     public IconStyle getIconStyle() {
-        return IconStyle.BLUE;
+        return IconStyle.PURPLE;
     }
 
     @Override
     public Node createView() {
         I18n.registerPluginBundle("i18n.messages", getClass().getClassLoader());
-        ui = new HappyLearningUi();
+        ui = new KeepAwakeUi();
         return ui.getView();
     }
 
@@ -66,6 +66,6 @@ public class HappyLearnPlugin implements SwissKitJPlugin {
 
     @Override
     public void onUnload() {
-        HappyLearningService.getInstance().stopLearning();
+        KeepAwakeService.getInstance().stop();
     }
 }
