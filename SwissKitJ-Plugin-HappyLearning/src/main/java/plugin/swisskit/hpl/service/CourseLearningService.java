@@ -575,15 +575,16 @@ public class CourseLearningService {
                     learnTime, LearningConstants.LEARN_TIME_MIN, LearningConstants.LEARN_TIME_MAX);
 
             double finalExitPlaytime = exitPlaytime + learnTime;
+            boolean isFinishing = false;
 
-            // If approaching end of courseware, cap the exitplaytime and add random buffer
-            // This simulates finishing the courseware with some variability
             if (finalExitPlaytime > totalTime && totalTime > 0) {
-                learnTime = totalTime - exitPlaytime;
-                if (learnTime < 0) learnTime = 0;
-                // Add up to 60 seconds random to simulate natural finishing variance
+                isFinishing = true;
+                double remaining = totalTime - exitPlaytime;
+                if (remaining > 0) {
+                    learnTime = remaining;
+                }
                 finalExitPlaytime = exitPlaytime + learnTime + 60 * Math.random();
-                log.debug("Near end of courseware, capped learnTime: {}s, finalExitPlaytime: {}s",
+                log.debug("Near end of courseware, learnTime: {}s, finalExitPlaytime: {}s",
                         learnTime, finalExitPlaytime);
             }
 
@@ -597,7 +598,7 @@ public class CourseLearningService {
             body.put("businesstype", lessonTypeCode);
             body.put("coursewareId", coursewareId);
             body.put("exitplaytime", finalExitPlaytime);
-            body.put("finished", LearningConstants.DEFAULT_FINISHED);
+            body.put("finished", isFinishing ? 1 : LearningConstants.DEFAULT_FINISHED);
             body.put("learncount", LearningConstants.DEFAULT_LEARN_COUNT);
             body.put("learndate", LocalDate.now().format(dtf));
             body.put("learntime", learnTime);
@@ -662,6 +663,9 @@ public class CourseLearningService {
                     break;
                 }
             }
+
+            exitPlaytime = getExitPlaytimeFromServer(lessonId, coursewareId, token);
+            log.debug("Synced exitPlaytime from server: {}s for next iteration", exitPlaytime);
         }
 
         return isFinished;
