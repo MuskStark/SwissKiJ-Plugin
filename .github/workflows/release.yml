@@ -1,0 +1,182 @@
+name: Release & Update Store
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout & Build SwissKitJ API ──────────────────────────────
+      - name: Checkout SwissKitJ
+        uses: actions/checkout@v4
+        with:
+          repository: MuskStark/SwissKitJ
+          path: SwissKitJ
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build & Install SwissKitJ API
+        run: |
+          cd SwissKitJ
+          mvn install -pl SwissKitJ-Api -am -DskipTests -B
+
+      # ── 2. Checkout Plugins ────────────────────────────────────────────
+      - name: Checkout Plugins
+        uses: actions/checkout@v4
+        with:
+          path: plugins
+
+      # ── 3. Build All Plugins ───────────────────────────────────────────
+      - name: Build Plugins
+        run: |
+          cd plugins
+          mvn clean package -DskipTests -B
+
+      # ── 4. Determine Release Tag ───────────────────────────────────────
+      - name: Set Release Tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="v$(date +'%Y%m%d-%H%M%S')"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${TAG}"
+
+      # ── 5. Resolve JAR Filenames ───────────────────────────────────────
+      - name: Resolve JAR Filenames
+        id: jars
+        run: |
+          HPL_JAR=$(basename plugins/SwissKitJ-Plugin-HappyLearning/target/*.jar)
+          KA_JAR=$(basename plugins/SwissKitJ-Plugin-KeepAwake/target/*.jar)
+          QCC_JAR=$(basename plugins/SwissKitJ-Plugin-Qcc/target/*.jar)
+          echo "hpl=${HPL_JAR}"  >> "$GITHUB_OUTPUT"
+          echo "ka=${KA_JAR}"    >> "$GITHUB_OUTPUT"
+          echo "qcc=${QCC_JAR}"  >> "$GITHUB_OUTPUT"
+          echo "JARs: ${HPL_JAR}, ${KA_JAR}, ${QCC_JAR}"
+
+      # ── 6. Create GitHub Release & Upload JARs ────────────────────────
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Plugins ${{ steps.tag.outputs.tag }}
+          draft: false
+          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
+          files: |
+            plugins/SwissKitJ-Plugin-HappyLearning/target/${{ steps.jars.outputs.hpl }}
+            plugins/SwissKitJ-Plugin-KeepAwake/target/${{ steps.jars.outputs.ka }}
+            plugins/SwissKitJ-Plugin-Qcc/target/${{ steps.jars.outputs.qcc }}
+
+      # ── 7. Update store.json with Release URLs ─────────────────────────
+      - name: Update store.json
+        run: |
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+          RELEASE_URL="https://github.com/${OWNER}/${REPO}/releases/download/${TAG}"
+
+          HPL_JAR="${{ steps.jars.outputs.hpl }}"
+          KA_JAR="${{ steps.jars.outputs.ka }}"
+          QCC_JAR="${{ steps.jars.outputs.qcc }}"
+
+          cd plugins
+
+          python3 -c "
+          import json, re, os
+
+          store_path = 'docs/store.json'
+          with open(store_path, 'r', encoding='utf-8') as f:
+              store = json.load(f)
+
+          jar_url_map = {
+              'happylearning': '${RELEASE_URL}/${HPL_JAR}',
+              'keepawake':     '${RELEASE_URL}/${KA_JAR}',
+              'qcc':           '${RELEASE_URL}/${QCC_JAR}',
+          }
+
+          # Map Java enum names to store.json values
+          icon_style_lookup = {
+              'BLUE': 'ic-blue', 'PURPLE': 'ic-purple', 'TEAL': 'ic-teal',
+              'AMBER': 'ic-amber', 'RED': 'ic-red', 'PINK': 'ic-pink', 'GRAY': 'ic-gray',
+          }
+          category_lookup = {
+              'DEV': 'dev', 'TEXT': 'text', 'IMAGE': 'image',
+              'NET': 'net', 'OTHER': 'other',
+          }
+
+          plugin_id_to_src = {
+              'happylearning': 'SwissKitJ-Plugin-HappyLearning/src/main/java/plugin/swisskit/hpl/HappyLearnPlugin.java',
+              'keepawake':     'SwissKitJ-Plugin-KeepAwake/src/main/java/plugin/swisskit/keepawake/KeepAwakePlugin.java',
+              'qcc':           'SwissKitJ-Plugin-Qcc/src/main/java/plugin/swisskitj/QccPlugin.java',
+          }
+
+          for entry in store:
+              pid = entry['id']
+              if pid in jar_url_map:
+                  entry['jarUrl'] = jar_url_map[pid]
+              if pid in plugin_id_to_src:
+                  src = plugin_id_to_src[pid]
+                  if os.path.exists(src):
+                      with open(src, 'r', encoding='utf-8') as f:
+                          src_content = f.read()
+                      m_icon = re.search(r'return\s+IconStyle\.(\w+)', src_content)
+                      if m_icon:
+                          entry['iconStyle'] = icon_style_lookup.get(m_icon.group(1), 'ic-blue')
+                      m_cat = re.search(r'return\s+ToolCategory\.(\w+)', src_content)
+                      if m_cat:
+                          entry['category'] = category_lookup.get(m_cat.group(1), 'other')
+
+          with open(store_path, 'w', encoding='utf-8') as f:
+              json.dump(store, f, ensure_ascii=False, indent=4)
+
+          print('Updated store.json:')
+          print(json.dumps(store, ensure_ascii=False, indent=4))
+          "
+
+      # ── 8. Commit Updated store.json ───────────────────────────────────
+      - name: Commit & Push store.json
+        run: |
+          cd plugins
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/store.json
+          git diff --cached --quiet || git commit -m "chore: update store.json jarUrl for release ${{ steps.tag.outputs.tag }}"
+          git push
+
+      # ── 9. Deploy store.json to GitHub Pages ───────────────────────────
+      - name: Prepare Pages artifact
+        run: |
+          mkdir -p pages
+          cp plugins/docs/store.json pages/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

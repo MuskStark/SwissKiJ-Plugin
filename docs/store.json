@@ -1,0 +1,29 @@
+[
+    {
+        "id": "keepawake",
+        "name": "KeepAwake",
+        "description": "Prevent screensaver and display sleep",
+        "version": "1.0.0",
+        "jarUrl": "",
+        "iconStyle": "ic-purple",
+        "category": "other"
+    },
+    {
+        "id": "happylearning",
+        "name": "HappyLearn",
+        "description": "HappyLearn",
+        "version": "v1.1.2",
+        "jarUrl": "",
+        "iconStyle": "ic-blue",
+        "category": "other"
+    },
+    {
+        "id": "qcc",
+        "name": "QccToExcel",
+        "description": "Convert Qichacha CSV data to styled Excel",
+        "version": "3.0.0",
+        "jarUrl": "",
+        "iconStyle": "ic-teal",
+        "category": "dev"
+    }
+]
