@@ -52,4 +52,14 @@ public class QccPlugin implements SwissKitJPlugin {
         ui = new QccUi();
         return ui.getView();
     }
+
+    @Override
+    public boolean hasRunningTasks() {
+        return ui != null && ui.isRunning();
+    }
+
+    @Override
+    public void onUnload() {
+        if (ui != null) ui.cancel();
+    }
 }

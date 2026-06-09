@@ -3,7 +3,7 @@ package plugin.swisskit.hpl.ui;
 import fan.summer.api.i18n.I18n;
 import fan.summer.api.log.LoggerFactory;
 import fan.summer.api.log.PluginLogger;
-import fan.summer.api.theme.Themes;
+import fan.summer.api.component.GlassNotification;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -384,11 +384,11 @@ public class HappyLearningUi {
             log.debug("Installing config from {} to {}", source, target);
             Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
             log.info("Successfully installed config: {}", source.toFile().getName());
-            showAlert(Alert.AlertType.INFORMATION,
+            GlassNotification.toast(root, GlassNotification.Type.SUCCESS,
                     I18n.get("plugin.hpl.configInstallSuccess") + selected.getName());
         } catch (IOException ex) {
             log.error("Failed to install config: {}", selected.getAbsolutePath(), ex);
-            showAlert(Alert.AlertType.ERROR,
+            GlassNotification.toast(root, GlassNotification.Type.ERROR,
                     I18n.get("plugin.hpl.configInstallError") + ex.getMessage());
         }
     }
@@ -397,25 +397,25 @@ public class HappyLearningUi {
         String text = passKeyField.getText();
         if (text.isEmpty()) {
             log.warn("[UI] Passkey is empty");
-            showAlert(Alert.AlertType.ERROR, I18n.get("plugin.hpl.passkeyEmpty"));
+            showError(I18n.get("plugin.hpl.passkeyEmpty"));
             return;
         }
         service.setKey(text);
-        showAlert(Alert.AlertType.INFORMATION, I18n.get("plugin.hpl.passkeySuccess"));
+        showSuccess(I18n.get("plugin.hpl.passkeySuccess"));
         log.info("[UI] Passkey set successfully");
     }
 
     private void handleStart() {
         if (service.isRunning()) {
             log.warn("[UI] Start clicked but learning is already running");
-            showAlert(Alert.AlertType.INFORMATION, I18n.get("plugin.hpl.learningAlreadyRunning"));
+            showInfo(I18n.get("plugin.hpl.learningAlreadyRunning"));
             return;
         }
 
         String key = service.getKey();
         if (key == null || key.isEmpty()) {
             log.warn("[UI] Start clicked but passkey is not set");
-            showAlert(Alert.AlertType.WARNING, I18n.get("plugin.hpl.pleaseSetPasskey"));
+            showWarning(I18n.get("plugin.hpl.pleaseSetPasskey"));
             return;
         }
 
@@ -423,14 +423,14 @@ public class HappyLearningUi {
             ConfigLoader.loadConfig();
         } catch (Exception e) {
             log.error("Failed to load config", e);
-            showAlert(Alert.AlertType.ERROR, I18n.get("plugin.hpl.failedLoadConfig") + ": " + e.getMessage());
+            showError(I18n.get("plugin.hpl.failedLoadConfig") + ": " + e.getMessage());
             return;
         }
 
         String token = WebUtil.getValueFromCookie(key, "m0biletoken");
         if (token == null || token.isEmpty()) {
             log.error("[UI] Token is null or empty");
-            showAlert(Alert.AlertType.ERROR, I18n.get("plugin.hpl.tokenEmpty"));
+            showError(I18n.get("plugin.hpl.tokenEmpty"));
             return;
         }
 
@@ -446,7 +446,7 @@ public class HappyLearningUi {
         try {
             UserSearchResp resp = service.getPersonInfo(key, token);
             if (resp == null || resp.getData() == null || resp.getData().getPeriodDataRU() == null) {
-                showAlert(Alert.AlertType.ERROR, I18n.get("plugin.hpl.failedGetPersonInfo"));
+                showError(I18n.get("plugin.hpl.failedGetPersonInfo"));
                 return;
             }
             PeriodDataRU period = resp.getData().getPeriodDataRU();
@@ -454,7 +454,7 @@ public class HappyLearningUi {
             updateProgressDisplay(period);
         } catch (Exception e) {
             log.error("Failed to initialize progress", e);
-            showAlert(Alert.AlertType.ERROR, I18n.get("plugin.hpl.failedInitProgress") + ": " + e.getMessage());
+            showError(I18n.get("plugin.hpl.failedInitProgress") + ": " + e.getMessage());
             return;
         }
 
@@ -582,14 +582,20 @@ public class HappyLearningUi {
 
     // ==================== Helpers ====================
 
-    private void showAlert(Alert.AlertType type, String message) {
-        Alert alert = new Alert(type);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.getDialogPane().sceneProperty().addListener((obs, old, scene) -> {
-            if (scene != null) Themes.applyTo(scene);
-        });
-        alert.showAndWait();
+    private void showSuccess(String message) {
+        GlassNotification.toast(root, GlassNotification.Type.SUCCESS, message);
+    }
+
+    private void showError(String message) {
+        GlassNotification.toast(root, GlassNotification.Type.ERROR, message);
+    }
+
+    private void showWarning(String message) {
+        GlassNotification.toast(root, GlassNotification.Type.WARNING, message);
+    }
+
+    private void showInfo(String message) {
+        GlassNotification.toast(root, GlassNotification.Type.INFO, message);
     }
 
     private static class BoardRow extends HBox {

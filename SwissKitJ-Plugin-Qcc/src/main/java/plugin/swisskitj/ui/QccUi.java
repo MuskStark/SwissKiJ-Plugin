@@ -1,7 +1,7 @@
 package plugin.swisskitj.ui;
 
+import fan.summer.api.component.GlassNotification;
 import fan.summer.api.i18n.I18n;
-import fan.summer.api.theme.Themes;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
@@ -37,6 +37,7 @@ public class QccUi {
     private final ProgressBar progressBar = new ProgressBar(0);
     private final Label statusLabel = new Label();
     private final Label progressPercent = new Label("0%");
+    private QccWorker activeWorker;
 
     public QccUi() {
         initComponents();
@@ -44,6 +45,16 @@ public class QccUi {
 
     public Node getView() {
         return root;
+    }
+
+    public boolean isRunning() {
+        return activeWorker != null && activeWorker.isRunning();
+    }
+
+    public void cancel() {
+        if (activeWorker != null && activeWorker.isRunning()) {
+            activeWorker.cancel(true);
+        }
     }
 
     private void initComponents() {
@@ -228,11 +239,13 @@ public class QccUi {
         String outputDir = outputField.getText();
 
         if (source.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Please select a source CSV file.");
+            GlassNotification.toast(root, GlassNotification.Type.WARNING,
+                    I18n.get("plugin.qcc.selectSourceWarning"));
             return;
         }
         if (outputDir.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Please select an output directory.");
+            GlassNotification.toast(root, GlassNotification.Type.WARNING,
+                    I18n.get("plugin.qcc.selectOutputWarning"));
             return;
         }
 
@@ -241,55 +254,50 @@ public class QccUi {
         convertBtn.setDisable(true);
         progressBar.setProgress(0);
         progressPercent.setText("0%");
-        statusLabel.setText("Processing...");
+        statusLabel.setText(I18n.get("plugin.qcc.processing"));
         statusLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
                 + " -fx-text-fill: " + ACCENT + ";");
 
-        QccWorker worker = new QccWorker(source, outputPath);
+        activeWorker = new QccWorker(source, outputPath);
 
-        worker.progressProperty().addListener((obs, oldVal, newVal) -> {
+        activeWorker.progressProperty().addListener((obs, oldVal, newVal) -> {
             double pct = newVal.doubleValue();
             progressBar.setProgress(pct);
             progressPercent.setText((int) (pct * 100) + "%");
         });
 
-        worker.messageProperty().addListener((obs, oldVal, newVal) -> {
+        activeWorker.messageProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) statusLabel.setText(newVal);
         });
 
-        worker.setOnSucceeded(e -> {
+        activeWorker.setOnSucceeded(e -> {
+            activeWorker = null;
             convertBtn.setDisable(false);
             progressBar.setProgress(1.0);
             progressPercent.setText("100%");
-            statusLabel.setText("Done — " + outputPath);
+            statusLabel.setText(I18n.get("plugin.qcc.done") + " — " + outputPath);
             statusLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
                     + " -fx-text-fill: " + ACCENT_GREEN + ";");
             progressBar.setStyle("-fx-accent: #4caf50;");
         });
 
-        worker.setOnFailed(e -> {
+        activeWorker.setOnFailed(e -> {
+            Throwable ex = activeWorker.getException();
+            activeWorker = null;
             convertBtn.setDisable(false);
             progressBar.setProgress(0);
             progressPercent.setText("ERR");
-            Throwable ex = worker.getException();
-            statusLabel.setText("Error: " + (ex != null ? ex.getMessage() : "Unknown"));
+            String errorMsg = ex != null ? ex.getMessage() : I18n.get("plugin.qcc.error");
+            statusLabel.setText(I18n.get("plugin.qcc.error") + ": " + errorMsg);
             statusLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
                     + " -fx-text-fill: " + ACCENT_RED + ";");
-            showAlert(Alert.AlertType.ERROR, "Conversion failed: " + (ex != null ? ex.getMessage() : "Unknown error"));
+            GlassNotification.toast(root, GlassNotification.Type.ERROR,
+                    I18n.get("plugin.qcc.conversionFailed") + ": " + errorMsg);
         });
 
-        Thread t = new Thread(worker, "Qcc-Worker");
+        Thread t = new Thread(activeWorker, "Qcc-Worker");
         t.setDaemon(true);
         t.start();
     }
 
-    private void showAlert(Alert.AlertType type, String message) {
-        Alert alert = new Alert(type);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.getDialogPane().sceneProperty().addListener((obs, old, scene) -> {
-            if (scene != null) Themes.applyTo(scene);
-        });
-        alert.showAndWait();
-    }
 }
