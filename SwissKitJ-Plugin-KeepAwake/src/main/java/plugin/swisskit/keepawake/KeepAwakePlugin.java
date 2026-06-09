@@ -75,6 +75,11 @@ public class KeepAwakePlugin implements SwissKitJPlugin {
     }
 
     @Override
+    public void onForeground() {
+        if (ui != null) ui.resumeUi();
+    }
+
+    @Override
     public void onUnload() {
         KeepAwakeService.getInstance().stop();
     }

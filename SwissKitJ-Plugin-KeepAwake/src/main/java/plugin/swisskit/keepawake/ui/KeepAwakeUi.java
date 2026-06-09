@@ -3,6 +3,7 @@ package plugin.swisskit.keepawake.ui;
 import fan.summer.api.i18n.I18n;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.animation.TranslateTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
@@ -32,6 +33,7 @@ public class KeepAwakeUi {
     private final Button startButton = new Button();
     private final Button stopButton = new Button();
     private final HBox dotIndicator = new HBox(4);
+    private final MethodToggle methodToggle = new MethodToggle();
     private Timeline timer;
     private Timeline blinkTimer;
 
@@ -56,6 +58,7 @@ public class KeepAwakeUi {
      */
     public void resumeUi() {
         refreshDisplay();
+        methodToggle.sync();
         if (service.isRunning()) {
             startButton.setDisable(true);
             startButton.setOpacity(0.35);
@@ -130,7 +133,22 @@ public class KeepAwakeUi {
         buttonRow.setAlignment(Pos.CENTER);
         buttonRow.setPadding(new Insets(16, 0, 0, 0));
 
-        root.getChildren().addAll(header, board, buttonRow);
+        // Method toggle switch row
+        Label toggleLabel = new Label();
+        toggleLabel.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
+                + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
+                + " -fx-font-size: 11px; -fx-font-weight: bold;");
+        I18n.bind(toggleLabel.textProperty(), p + "toggleLabel");
+
+        HBox toggleRow = new HBox(12, toggleLabel, methodToggle);
+        toggleRow.setAlignment(Pos.CENTER);
+        toggleRow.setPadding(new Insets(0, 0, 0, 0));
+
+        VBox controlArea = new VBox(toggleRow, buttonRow);
+        controlArea.setAlignment(Pos.CENTER);
+        controlArea.setPadding(new Insets(16, 0, 0, 0));
+
+        root.getChildren().addAll(header, board, controlArea);
 
         startButton.setOnAction(e -> handleStart());
         stopButton.setOnAction(e -> handleStop());
@@ -182,6 +200,7 @@ public class KeepAwakeUi {
         stopButton.setOpacity(0.35);
 
         refreshDisplay();
+        methodToggle.sync();
     }
 
     private void updateElapsed() {
@@ -231,6 +250,137 @@ public class KeepAwakeUi {
 
         updateElapsed();
     }
+
+    // ── Sliding toggle switch ────────────────────────────────────────────
+
+    /**
+     * Pill-style toggle switch: left = Mouse Sim, right = System API.
+     * A sliding pill highlights the active option; click to toggle.
+     * Disabled while the service is running.
+     */
+    private class MethodToggle extends StackPane {
+
+        private static final double PAD = 4;
+        private static final double OPT_W = 116;
+        private static final double TRACK_W = PAD * 2 + OPT_W * 2;
+        private static final double TRACK_H = 36;
+        private static final double PILL_W = OPT_W;
+        private static final double PILL_H = TRACK_H - PAD * 2;
+
+        private final Region pill = new Region();
+        private final Label optMouse = new Label();
+        private final Label optApi = new Label();
+        private final HBox optionsBox = new HBox();
+
+        MethodToggle() {
+            String p = "plugin.keepawake.";
+
+            // ── Track ──
+            setPrefSize(TRACK_W, TRACK_H);
+            setMaxSize(TRACK_W, TRACK_H);
+            setStyle("-fx-background-color: " + DIVIDER + ";"
+                    + " -fx-background-radius: 999px;"
+                    + " -fx-border-color: derive(" + DIVIDER + ", -20%);"
+                    + " -fx-border-width: 0.5px;"
+                    + " -fx-border-radius: 999px;"
+                    + " -fx-padding: " + PAD + "px;"
+                    + " -fx-cursor: hand;");
+
+            // ── Pill (slides behind active option) ──
+            pill.setPrefSize(PILL_W, PILL_H);
+            pill.setMaxSize(PILL_W, PILL_H);
+            pill.setStyle("-fx-background-color: " + CARD_BG + ";"
+                    + " -fx-background-radius: 999px;"
+                    + " -fx-border-color: derive(" + TEXT_DIM + ", -40%);"
+                    + " -fx-border-width: 0.5px;"
+                    + " -fx-border-radius: 999px;");
+
+            StackPane.setAlignment(pill, Pos.TOP_LEFT);
+
+            // ── Options (z-index above pill) ──
+            I18n.bind(optMouse.textProperty(), p + "toggleMouse");
+            I18n.bind(optApi.textProperty(), p + "toggleApi");
+
+            optMouse.setPrefSize(OPT_W, PILL_H);
+            optApi.setPrefSize(OPT_W, PILL_H);
+            optMouse.setAlignment(Pos.CENTER);
+            optApi.setAlignment(Pos.CENTER);
+
+            optionsBox.setPrefSize(OPT_W * 2, PILL_H);
+            optionsBox.getChildren().addAll(optMouse, optApi);
+
+            getChildren().addAll(pill, optionsBox);
+
+            // Click to toggle
+            setOnMouseClicked(e -> {
+                if (service.isRunning()) return;
+                service.setUseSystemApi(!service.isUseSystemApi());
+                animatePill();
+            });
+
+            // Initial position
+            movePill(false);
+            updateOptColors();
+        }
+
+        void sync() {
+            movePill(true);
+            if (service.isRunning()) {
+                setCursor(Cursor.DEFAULT);
+                setOpacity(0.5);
+            } else {
+                setCursor(Cursor.HAND);
+                setOpacity(1.0);
+            }
+        }
+
+        private void animatePill() {
+            boolean systemApi = service.isUseSystemApi();
+            double targetX = systemApi ? OPT_W : 0;
+
+            TranslateTransition tt = new TranslateTransition(
+                    Duration.millis(280), pill);
+            tt.setToX(targetX);
+            tt.setInterpolator(javafx.animation.Interpolator.SPLINE(0.4, 0, 0.2, 1));
+            tt.play();
+
+            updateOptColors();
+        }
+
+        private void movePill(boolean animated) {
+            boolean systemApi = service.isUseSystemApi();
+            double targetX = systemApi ? OPT_W : 0;
+
+            if (animated) {
+                TranslateTransition tt = new TranslateTransition(
+                        Duration.millis(280), pill);
+                tt.setToX(targetX);
+                tt.setInterpolator(javafx.animation.Interpolator.SPLINE(0.4, 0, 0.2, 1));
+                tt.play();
+            } else {
+                pill.setTranslateX(targetX);
+            }
+
+            updateOptColors();
+        }
+
+        private void updateOptColors() {
+            boolean systemApi = service.isUseSystemApi();
+            boolean mouseActive = !systemApi;
+
+            String active = "-fx-font-family: 'Menlo', 'Consolas', monospace;"
+                    + " -fx-font-size: 13px; -fx-font-weight: 500;"
+                    + " -fx-text-fill: " + TEXT_BRIGHT + ";";
+            String inactive = "-fx-font-family: 'Menlo', 'Consolas', monospace;"
+                    + " -fx-font-size: 13px; -fx-font-weight: 400;"
+                    + " -fx-text-fill: " + TEXT_DIM + ";";
+
+            optMouse.setStyle(mouseActive ? active : inactive);
+            optApi.setStyle(systemApi ? active : inactive);
+        }
+    }
+
+    // ── Board row helper ─────────────────────────────────────────────────
 
     private static class BoardRow extends HBox {
         private final Label valueNode;

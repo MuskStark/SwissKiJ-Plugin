@@ -22,6 +22,9 @@ public class KeepAwakeService {
     private volatile long startTimeMs;
     private final Robot robot;
 
+    /** User preference: true = system API (with fallback), false = mouse simulation only. */
+    private volatile boolean useSystemApi = true;
+
     private KeepAwakeService() {
         Robot r;
         try {
@@ -37,8 +40,13 @@ public class KeepAwakeService {
         running = true;
         startTimeMs = System.currentTimeMillis();
 
-        if (trySystemApi()) {
-            activeMethod = Method.SYSTEM_API;
+        if (useSystemApi) {
+            if (trySystemApi()) {
+                activeMethod = Method.SYSTEM_API;
+            } else {
+                startMouseSimulation();
+                activeMethod = Method.MOUSE_SIMULATION;
+            }
         } else {
             startMouseSimulation();
             activeMethod = Method.MOUSE_SIMULATION;
@@ -66,6 +74,14 @@ public class KeepAwakeService {
 
     public long getStartTimeMs() {
         return startTimeMs;
+    }
+
+    public boolean isUseSystemApi() {
+        return useSystemApi;
+    }
+
+    public void setUseSystemApi(boolean useSystemApi) {
+        this.useSystemApi = useSystemApi;
     }
 
     private boolean trySystemApi() {
