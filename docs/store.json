@@ -4,7 +4,7 @@
         "name": "KeepAwake",
         "description": "Prevent screensaver and display sleep",
         "version": "1.0.0",
-        "jarUrl": "",
+        "jarUrl": "https://github.com/MuskStark/SwissKiJ-Plugin/releases/download/v1.0.0/SwissKitJ-Plugin-KeepAwake-1.0.0.jar",
         "iconStyle": "ic-purple",
         "category": "other"
     },
@@ -13,7 +13,7 @@
         "name": "HappyLearn",
         "description": "HappyLearn",
         "version": "v1.1.2",
-        "jarUrl": "",
+        "jarUrl": "https://github.com/MuskStark/SwissKiJ-Plugin/releases/download/v1.0.0/SwissKitJ-Plugin-HappyLearning-v1.1.2.jar",
         "iconStyle": "ic-blue",
         "category": "other"
     },
@@ -22,7 +22,7 @@
         "name": "QccToExcel",
         "description": "Convert Qichacha CSV data to styled Excel",
         "version": "3.0.0",
-        "jarUrl": "",
+        "jarUrl": "https://github.com/MuskStark/SwissKiJ-Plugin/releases/download/v1.0.0/SwissKitJ-Plugin-Qcc-3.0.0.jar",
         "iconStyle": "ic-teal",
         "category": "dev"
     }
