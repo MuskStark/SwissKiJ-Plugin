@@ -1,0 +1,105 @@
+package plugin.swisskit.offlinepython.command;
+
+import plugin.swisskit.offlinepython.domain.CheckResult;
+import plugin.swisskit.offlinepython.domain.DependencySpec;
+import plugin.swisskit.offlinepython.domain.Manifest;
+import plugin.swisskit.offlinepython.domain.Status;
+import plugin.swisskit.offlinepython.domain.VerifyResult;
+import plugin.swisskit.offlinepython.domain.WheelEntry;
+import plugin.swisskit.offlinepython.infra.HashUtil;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+/** Verifies an output/ repository against its manifest (no subprocess calls). */
+public class VerifyService {
+
+    public VerifyResult verify(Path outputDir, Manifest manifest) {
+        return new VerifyResult(
+                checkSha256(outputDir, manifest),
+                checkFileIntegrity(outputDir, manifest),
+                checkWheels(manifest),
+                checkRequirements(manifest),
+                checkManifest(manifest));
+    }
+
+    /** Every manifest wheel file exists and is non-empty. */
+    CheckResult checkFileIntegrity(Path outputDir, Manifest m) {
+        List<String> problems = new ArrayList<>();
+        for (WheelEntry w : m.getWheels()) {
+            Path f = outputDir.resolve(w.getFile());
+            try {
+                if (!Files.exists(f)) problems.add("missing: " + w.getFile());
+                else if (Files.size(f) == 0) problems.add("empty: " + w.getFile());
+            } catch (IOException e) {
+                problems.add("cannot stat: " + w.getFile());
+            }
+        }
+        Path installer = m.getPython().getInstaller() == null ? null
+                : outputDir.resolve(m.getPython().getInstaller());
+        if (m.getPython().getInstaller() != null) {
+            if (installer == null || !Files.exists(installer))
+                problems.add("missing python installer: " + m.getPython().getInstaller());
+        }
+        return problems.isEmpty()
+                ? CheckResult.pass("all manifest files present and non-empty")
+                : CheckResult.fail("integrity problems", problems);
+    }
+
+    /** Recompute SHA256 of each wheel and compare to manifest. */
+    CheckResult checkSha256(Path outputDir, Manifest m) {
+        List<String> problems = new ArrayList<>();
+        for (WheelEntry w : m.getWheels()) {
+            Path f = outputDir.resolve(w.getFile());
+            if (!Files.exists(f)) { problems.add("cannot hash missing " + w.getFile()); continue; }
+            String actual;
+            try { actual = HashUtil.sha256Hex(f); }
+            catch (IOException e) { problems.add("hash error " + w.getFile()); continue; }
+            if (!actual.equalsIgnoreCase(w.getSha256()))
+                problems.add("hash mismatch: " + w.getFile());
+        }
+        return problems.isEmpty()
+                ? CheckResult.pass("all checksums match")
+                : CheckResult.fail("checksum mismatch", problems);
+    }
+
+    /** Wheel filenames look like *.whl. */
+    CheckResult checkWheels(Manifest m) {
+        List<String> problems = new ArrayList<>();
+        for (WheelEntry w : m.getWheels()) {
+            if (w.getFile() == null || !w.getFile().endsWith(".whl"))
+                problems.add("not a wheel: " + w.getFile());
+        }
+        return problems.isEmpty()
+                ? CheckResult.pass("all wheel entries valid")
+                : CheckResult.warn("invalid wheel entries", problems);
+    }
+
+    /** Each requirements.txt package has at least one matching wheel by name. */
+    CheckResult checkRequirements(Manifest m) {
+        List<String> problems = new ArrayList<>();
+        for (String req : m.getRequirements()) {
+            DependencySpec spec = DependencySpec.parse(req);
+            boolean found = m.getWheels().stream().anyMatch(w -> w.getName().equalsIgnoreCase(spec.name()));
+            if (!found) problems.add("no wheel satisfies: " + req);
+        }
+        return problems.isEmpty()
+                ? CheckResult.pass("all requirements satisfied")
+                : CheckResult.warn("unsatisfied requirements", problems);
+    }
+
+    /** Manifest must declare a usable schema version. Missing optional metadata
+     *  (e.g. python version when no installer is bundled) is a soft warning, not corruption. */
+    CheckResult checkManifest(Manifest m) {
+        List<String> errors = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
+        if (m.getSchemaVersion() < 1) errors.add("schemaVersion missing");
+        if (m.getPython().getVersion() == null) warnings.add("python version missing");
+        if (!errors.isEmpty()) return CheckResult.fail("manifest inconsistent", errors);
+        if (!warnings.isEmpty()) return CheckResult.warn("manifest incomplete", warnings);
+        return CheckResult.pass("manifest consistent");
+    }
+}
