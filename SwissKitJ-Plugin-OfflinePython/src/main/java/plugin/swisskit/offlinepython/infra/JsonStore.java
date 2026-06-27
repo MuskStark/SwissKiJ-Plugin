@@ -11,8 +11,13 @@ import java.nio.file.Path;
 public final class JsonStore {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON_PLAIN = new GsonBuilder().create();
 
     private JsonStore() {}
+
+    public static <T> T fromJson(String json, Class<T> type) {
+        return GSON_PLAIN.fromJson(json, type);
+    }
 
     public static <T> T load(Path file, Class<T> type) throws IOException {
         return GSON.fromJson(Files.readString(file), type);
