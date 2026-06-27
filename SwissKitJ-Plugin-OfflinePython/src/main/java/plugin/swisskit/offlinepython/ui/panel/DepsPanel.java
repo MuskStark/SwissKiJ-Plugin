@@ -28,9 +28,21 @@ public class DepsPanel extends CommandPanel {
             requirementsFile = f.toPath();
             load();
         });
+        final TextField pkgField = new TextField();
+        final TextField verField = new TextField();
+        Button add = new Button("Add");
+        add.setOnAction(e -> {
+            String n = pkgField.getText().trim();
+            if (n.isEmpty()) return;
+            String v = verField.getText().trim();
+            list.getItems().add(new DependencySpec(n, v, null));
+            pkgField.clear();
+            verField.clear();
+        });
         HBox addRow = new HBox(8,
-                labeled("Package", new TextField()),
-                labeled("Version", new TextField()));
+                new HBox(6, new Label("Package"), pkgField),
+                new HBox(6, new Label("Version"), verField),
+                add);
         Button save = new Button("Save");
         save.setOnAction(e -> save());
         getChildren().addAll(open, list, addRow, save);
@@ -57,11 +69,6 @@ public class DepsPanel extends CommandPanel {
         } catch (Exception ex) {
             log.log("ERROR save: " + ex.getMessage());
         }
-    }
-
-    private HBox labeled(String text, TextField field) {
-        HBox h = new HBox(6, new Label(text), field);
-        return h;
     }
 
     @Override public String title() { return "Dependencies"; }

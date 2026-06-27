@@ -1,7 +1,6 @@
 package plugin.swisskit.offlinepython.ui.panel;
 
 import fan.summer.api.component.GlassNotification;
-import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
@@ -18,13 +17,13 @@ import java.io.File;
 
 public class BuildPanel extends CommandPanel {
     private final ProgressBar progress = new ProgressBar();
+    private final Button build = new Button("Build");
     private PluginTask<Integer> task;
     private ProcessRunner runner;
 
     public BuildPanel(LogConsole log) {
         super(log);
         getChildren().add(new Label(title()));
-        Button build = new Button("Build");
         Button cancel = new Button("Cancel");
         progress.setProgress(-1);
         build.setOnAction(e -> start());
@@ -33,9 +32,11 @@ public class BuildPanel extends CommandPanel {
     }
 
     private void start() {
+        if (isRunning()) return;
+        build.setDisable(true);
         DirectoryChooser dc = new DirectoryChooser();
         File dir = dc.showDialog(getScene().getWindow());
-        if (dir == null) return;
+        if (dir == null) { build.setDisable(false); return; }
         runner = new ProcessRunner();
         task = new PluginTask<>() {
             @Override protected Integer call() throws Exception {
@@ -45,18 +46,28 @@ public class BuildPanel extends CommandPanel {
                 return new BuildService().build(dir.toPath(), cfg, det.executable(), log::log, runner);
             }
         };
-        task.setOnSucceeded(e -> Platform.runLater(() -> {
+        task.setOnSucceeded(e -> {
             int code = task.getValue();
             log.log(code == 0 ? "Build OK" : "Build failed (exit " + code + ")");
             GlassNotification.toast(this, code == 0 ? GlassNotification.Type.SUCCESS : GlassNotification.Type.ERROR,
                     code == 0 ? "Build complete" : "Build failed");
             progress.setProgress(code == 0 ? 1 : 0);
-        }));
-        task.setOnFailed(e -> Platform.runLater(() -> {
+            build.setDisable(false);
+        });
+        task.setOnFailed(e -> {
             log.log("ERROR: " + task.getException().getMessage());
             GlassNotification.toast(this, GlassNotification.Type.ERROR, "Build failed");
-        }));
-        new Thread(task).start();
+            build.setDisable(false);
+        });
+        Thread t = new Thread(task, "OfflinePython-Build");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Cancel any running build (called on plugin unload). */
+    public void cancel() {
+        if (runner != null) runner.cancel();
+        if (task != null) task.cancel(false);
     }
 
     public boolean isRunning() { return task != null && task.isRunningTask(); }

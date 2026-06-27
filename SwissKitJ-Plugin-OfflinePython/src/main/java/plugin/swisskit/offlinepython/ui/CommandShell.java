@@ -57,5 +57,5 @@ public class CommandShell {
     public boolean hasRunningTasks() { return buildPanel != null && buildPanel.isRunning(); }
     public void onBackground() {}
     public void onForeground() { refreshPython(); }
-    public void onUnload() {}
+    public void onUnload() { if (buildPanel != null) buildPanel.cancel(); }
 }
