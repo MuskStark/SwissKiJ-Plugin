@@ -1,6 +1,7 @@
 package plugin.swisskit.offlinepython.command;
 
 import plugin.swisskit.offlinepython.domain.BuildConfig;
+import plugin.swisskit.offlinepython.domain.DependencySpec;
 import plugin.swisskit.offlinepython.domain.Manifest;
 import plugin.swisskit.offlinepython.domain.WheelEntry;
 import plugin.swisskit.offlinepython.infra.HashUtil;
@@ -56,8 +57,9 @@ public class BuildService {
             for (Path f : sorted) {
                 if (!f.toString().endsWith(".whl")) continue;
                 String name = wheelNamePart(f.getFileName().toString());
+                String normName = DependencySpec.normalizeName(name);
                 boolean required = reqNames.stream()
-                        .anyMatch(r -> r.toLowerCase().startsWith(name.toLowerCase()));
+                        .anyMatch(r -> DependencySpec.normalizeName(r).startsWith(normName));
                 wheels.add(new WheelEntry(
                         name, "", output.relativize(f).toString().replace('\\', '/'),
                         HashUtil.sha256Hex(f), Files.size(f), required));

@@ -8,6 +8,12 @@ public record DependencySpec(String name, String versionSpec, String marker) {
         if (versionSpec == null) versionSpec = "";
     }
 
+    /** Normalize a package name for comparison (PEP 503): lowercase, treat - and _ as equivalent. */
+    public static String normalizeName(String name) {
+        if (name == null) return "";
+        return name.toLowerCase().replace("-", "_");
+    }
+
     /** Parse a single requirements.txt line (no comments, already trimmed). */
     public static DependencySpec parse(String raw) {
         String line = raw == null ? "" : raw.trim();

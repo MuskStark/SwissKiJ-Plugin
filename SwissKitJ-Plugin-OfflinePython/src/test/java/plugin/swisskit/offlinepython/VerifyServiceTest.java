@@ -78,4 +78,18 @@ class VerifyServiceTest {
         VerifyResult r = new VerifyService().verify(output, m);
         assertEquals(Status.FAIL, r.sha256().status());
     }
+
+    @Test
+    void dashedRequirementMatchesUnderscoreWheel(@TempDir Path tmp) throws Exception {
+        Path output = tmp.resolve("output");
+        Files.createDirectories(output);
+        Manifest m = new Manifest();
+        m.getRequirements().add("scikit-learn==1.4.0");
+        // wheel filename uses underscore (PEP 427)
+        m.getWheels().add(new WheelEntry("scikit_learn", "1.4.0", "wheelhouse/scikit_learn.whl", "", 0, true));
+        seedRepo(output, m);
+        VerifyResult r = new VerifyService().verify(output, m);
+        assertEquals(Status.PASS, r.requirements().status(),
+                "scikit-learn requirement must be satisfied by scikit_learn wheel");
+    }
 }

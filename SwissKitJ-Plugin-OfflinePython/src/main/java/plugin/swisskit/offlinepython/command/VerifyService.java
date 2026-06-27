@@ -83,7 +83,9 @@ public class VerifyService {
         List<String> problems = new ArrayList<>();
         for (String req : m.getRequirements()) {
             DependencySpec spec = DependencySpec.parse(req);
-            boolean found = m.getWheels().stream().anyMatch(w -> w.getName().equalsIgnoreCase(spec.name()));
+            String want = DependencySpec.normalizeName(spec.name());
+            boolean found = m.getWheels().stream()
+                    .anyMatch(w -> DependencySpec.normalizeName(w.getName()).equals(want));
             if (!found) problems.add("no wheel satisfies: " + req);
         }
         return problems.isEmpty()
