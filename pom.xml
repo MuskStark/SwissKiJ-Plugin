@@ -15,6 +15,7 @@
         <module>SwissKitJ-Plugin-HappyLearning</module>
         <module>SwissKitJ-Plugin-Qcc</module>
         <module>SwissKitJ-Plugin-KeepAwake</module>
+        <module>SwissKitJ-Plugin-OfflinePython</module>
     </modules>
 
 </project>
