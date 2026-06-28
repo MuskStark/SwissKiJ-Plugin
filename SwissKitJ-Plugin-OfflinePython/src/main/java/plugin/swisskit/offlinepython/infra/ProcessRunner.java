@@ -18,16 +18,18 @@ public final class ProcessRunner {
     private Process process;
     private volatile boolean destroyed;
 
-    /** Build the platform-targeted pip download command list. Pure function — unit-tested. */
+    /** Build the platform-targeted pip download command list. Emits one --platform per
+     *  selected platform (pip accepts repeated --platform). Empty selection falls back to "any". */
     public static List<String> pipDownloadCommand(String python, String requirements,
-                                                  String destDir, String platform,
+                                                  String destDir, List<String> platforms,
                                                   String pythonVersion, String implementation,
                                                   boolean onlyBinary) {
         List<String> cmd = new ArrayList<>();
         cmd.add(python);
-        cmd.addAll(List.of("-m", "pip", "download", "-r", requirements, "-d", destDir,
-                "--platform", platform, "--python-version", pythonVersion,
-                "--implementation", implementation));
+        cmd.addAll(List.of("-m", "pip", "download", "-r", requirements, "-d", destDir));
+        List<String> plats = (platforms == null || platforms.isEmpty()) ? List.of("any") : platforms;
+        for (String p : plats) cmd.addAll(List.of("--platform", p));
+        cmd.addAll(List.of("--python-version", pythonVersion, "--implementation", implementation));
         if (onlyBinary) cmd.add("--only-binary=:all:");
         return cmd;
     }

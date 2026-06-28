@@ -150,7 +150,7 @@ public class DepsPanel extends CommandPanel {
 
     private String currentPlatform() {
         return project.getConfig() != null && project.getConfig().getPython() != null
-                ? project.getConfig().getPython().getPlatform() : "win_amd64";
+                ? project.getConfig().getPython().getPrimaryPlatform() : "win_amd64";
     }
 
     private void filterTable(String q) {

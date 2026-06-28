@@ -54,7 +54,7 @@ public class BuildPanel extends CommandPanel {
         Path dir = project.getProjectDir();
         depCount = countDeps(dir);
         String plat = project.getConfig() != null && project.getConfig().getPython() != null
-                ? project.getConfig().getPython().getPlatform() : "?";
+                ? project.getConfig().getPython().getPrimaryPlatform() : "?";
         banner.setText("📋 当前依赖：" + depCount + " 个直接  ·  目标 " + plat
                 + (project.getConfig() != null && project.getConfig().getPython() != null
                     ? "  ·  Python " + project.getConfig().getPython().getVersion() : ""));

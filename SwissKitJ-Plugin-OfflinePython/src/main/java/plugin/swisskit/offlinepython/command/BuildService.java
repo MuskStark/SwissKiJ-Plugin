@@ -33,7 +33,7 @@ public class BuildService {
                 pythonExecutable,
                 reqs.toString(),
                 wheelhouse.toString(),
-                cfg.getPython().getPlatform(),
+                cfg.getPython().getPlatforms(),
                 majorMinor(cfg.getPython().getVersion()),
                 cfg.getPython().getImplementation(),
                 cfg.getDownload().isOnlyBinary());
@@ -80,7 +80,7 @@ public class BuildService {
         Manifest m = new Manifest();
         m.setSchemaVersion(1);
         m.getPython().setVersion(cfg.getPython().getVersion());
-        m.getPython().setPlatform(cfg.getPython().getPlatform());
+        m.getPython().setPlatforms(new java.util.ArrayList<>(cfg.getPython().getPlatforms()));
         m.setBuiltAt(java.time.OffsetDateTime.now().toString());
         m.setBuiltOn(System.getProperty("user.name"));
         m.setToolVersion("1.0.0");

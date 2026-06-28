@@ -12,7 +12,7 @@ public @Data class BuildConfig {
     public static BuildConfig defaults() {
         BuildConfig c = new BuildConfig();
         c.python.version = "3.12.10";
-        c.python.platform = "win_amd64";
+        c.python.platforms = new java.util.ArrayList<>(java.util.List.of("win_amd64"));
         c.python.implementation = "cp";
         c.python.installer = true;
         c.repository.output = "output";
@@ -30,10 +30,15 @@ public @Data class BuildConfig {
 
     @Data public static class Python {
         private String version;
-        private String platform;
+        private java.util.List<String> platforms = new java.util.ArrayList<>(java.util.List.of("win_amd64"));
         private String implementation;
         private boolean installer;
         private String executable; // null = auto-detect
+
+        /** First selected platform (primary for estimates / single-platform display); defaults to win_amd64. */
+        public String getPrimaryPlatform() {
+            return platforms == null || platforms.isEmpty() ? "win_amd64" : platforms.get(0);
+        }
     }
 
     @Data public static class Repository {

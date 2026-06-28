@@ -5,6 +5,8 @@ import plugin.swisskit.offlinepython.domain.Manifest;
 import plugin.swisskit.offlinepython.domain.WheelEntry;
 import plugin.swisskit.offlinepython.infra.JsonStore;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class ManifestTest {
@@ -26,5 +28,14 @@ class ManifestTest {
         assertEquals("numpy", back.getWheels().get(0).getName());
         assertTrue(back.getWheels().get(0).isRequired());
         assertTrue(json.contains("\"schemaVersion\""));
+    }
+
+    @Test
+    void manifestTracksPlatforms() {
+        Manifest m = new Manifest();
+        m.getPython().setPlatforms(new java.util.ArrayList<>(List.of("win_amd64", "manylinux2014_aarch64")));
+        String json = new com.google.gson.GsonBuilder().create().toJson(m);
+        Manifest back = JsonStore.fromJson(json, Manifest.class);
+        assertEquals(List.of("win_amd64", "manylinux2014_aarch64"), back.getPython().getPlatforms());
     }
 }

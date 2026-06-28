@@ -6,6 +6,7 @@ import plugin.swisskit.offlinepython.domain.BuildConfig;
 import plugin.swisskit.offlinepython.infra.JsonStore;
 
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -15,15 +16,23 @@ class BuildConfigTest {
     void roundTripsThroughJson(@TempDir Path tmp) throws Exception {
         BuildConfig cfg = BuildConfig.defaults();
         cfg.getPython().setVersion("3.12.10");
-        cfg.getPython().setPlatform("win_amd64");
+        cfg.getPython().setPlatforms(new java.util.ArrayList<>(List.of("win_amd64", "manylinux2014_x86_64")));
 
         Path file = tmp.resolve("config.json");
         JsonStore.save(cfg, file);
         BuildConfig loaded = JsonStore.load(file, BuildConfig.class);
 
         assertEquals("3.12.10", loaded.getPython().getVersion());
-        assertEquals("win_amd64", loaded.getPython().getPlatform());
+        assertEquals(List.of("win_amd64", "manylinux2014_x86_64"), loaded.getPython().getPlatforms());
+        assertEquals("win_amd64", loaded.getPython().getPrimaryPlatform());
         assertTrue(loaded.getDownload().isRecursive());
+    }
+
+    @Test
+    void primaryPlatformDefaultsToWinAmd64WhenEmpty() {
+        BuildConfig cfg = new BuildConfig();
+        cfg.getPython().setPlatforms(new java.util.ArrayList<>());
+        assertEquals("win_amd64", cfg.getPython().getPrimaryPlatform());
     }
 
     @Test

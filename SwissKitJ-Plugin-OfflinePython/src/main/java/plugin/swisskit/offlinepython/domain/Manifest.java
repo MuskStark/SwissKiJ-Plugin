@@ -18,7 +18,7 @@ public class Manifest {
     @Data
     public static class Python {
         private String version;
-        private String platform;
+        private java.util.List<String> platforms = new java.util.ArrayList<>();
         private String installer;       // relative path
         private String installerSha256;
     }
