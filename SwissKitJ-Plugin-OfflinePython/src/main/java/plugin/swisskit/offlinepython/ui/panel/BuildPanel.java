@@ -1,8 +1,9 @@
 package plugin.swisskit.offlinepython.ui.panel;
 
 import fan.summer.api.component.GlassNotification;
+import fan.summer.api.component.UiUtils;
+import fan.summer.api.i18n.I18n;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.HBox;
 import javafx.stage.DirectoryChooser;
@@ -17,14 +18,15 @@ import java.io.File;
 
 public class BuildPanel extends CommandPanel {
     private final ProgressBar progress = new ProgressBar();
-    private final Button build = new Button("Build");
+    private final Button build;
     private PluginTask<Integer> task;
     private ProcessRunner runner;
 
     public BuildPanel(LogConsole log) {
         super(log);
-        getChildren().add(new Label(title()));
-        Button cancel = new Button("Cancel");
+        getChildren().add(titleNode());
+        build = UiUtils.glassBtn("Build", true);
+        Button cancel = UiUtils.glassBtn("Cancel", false);
         progress.setProgress(-1);
         build.setOnAction(e -> start());
         cancel.setOnAction(e -> { if (runner != null) runner.cancel(); });
@@ -52,11 +54,16 @@ public class BuildPanel extends CommandPanel {
             GlassNotification.toast(this, code == 0 ? GlassNotification.Type.SUCCESS : GlassNotification.Type.ERROR,
                     code == 0 ? "Build complete" : "Build failed");
             progress.setProgress(code == 0 ? 1 : 0);
+            progress.getStyleClass().removeAll("success", "danger");
+            progress.getStyleClass().add(code == 0 ? "success" : "danger");
             build.setDisable(false);
         });
         task.setOnFailed(e -> {
             log.log("ERROR: " + task.getException().getMessage());
             GlassNotification.toast(this, GlassNotification.Type.ERROR, "Build failed");
+            progress.setProgress(0);
+            progress.getStyleClass().removeAll("success", "danger");
+            progress.getStyleClass().add("danger");
             build.setDisable(false);
         });
         Thread t = new Thread(task, "OfflinePython-Build");
@@ -72,5 +79,5 @@ public class BuildPanel extends CommandPanel {
 
     public boolean isRunning() { return task != null && task.isRunningTask(); }
 
-    @Override public String title() { return "Build Repository"; }
+    @Override public String title() { return I18n.get("opb.build.title"); }
 }
