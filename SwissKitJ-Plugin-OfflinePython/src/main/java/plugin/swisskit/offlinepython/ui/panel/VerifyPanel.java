@@ -1,8 +1,11 @@
 package plugin.swisskit.offlinepython.ui.panel;
 
 import fan.summer.api.component.GlassNotification;
+import fan.summer.api.component.UiUtils;
+import fan.summer.api.i18n.I18n;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import plugin.swisskit.offlinepython.command.VerifyService;
@@ -11,6 +14,7 @@ import plugin.swisskit.offlinepython.domain.Manifest;
 import plugin.swisskit.offlinepython.domain.VerifyResult;
 import plugin.swisskit.offlinepython.infra.JsonStore;
 import plugin.swisskit.offlinepython.ui.LogConsole;
+import plugin.swisskit.offlinepython.ui.OpbStyle;
 
 import java.io.File;
 
@@ -19,8 +23,8 @@ public class VerifyPanel extends CommandPanel {
 
     public VerifyPanel(LogConsole log) {
         super(log);
-        getChildren().add(new Label(title()));
-        Button verify = new Button("Verify");
+        getChildren().add(titleNode());
+        Button verify = UiUtils.glassBtn("Verify", true);
         verify.setOnAction(e -> {
             DirectoryChooser dc = new DirectoryChooser();
             File dir = dc.showDialog(getScene().getWindow());
@@ -43,9 +47,11 @@ public class VerifyPanel extends CommandPanel {
     private void render(VerifyResult r) {
         report.getChildren().clear();
         for (CheckResult c : new CheckResult[]{r.sha256(), r.fileIntegrity(), r.wheels(), r.requirements(), r.manifest()}) {
-            report.getChildren().add(new Label("[" + c.status() + "] " + c.detail()));
+            Label badge = new Label("[" + c.status() + "]");
+            badge.setStyle("-fx-text-fill: " + OpbStyle.statusColor(c.status()) + "; -fx-font-weight: bold;");
+            report.getChildren().add(new HBox(8, badge, UiUtils.subLabel(c.detail())));
         }
     }
 
-    @Override public String title() { return "Verify Repository"; }
+    @Override public String title() { return I18n.get("opb.verify.title"); }
 }
