@@ -19,13 +19,15 @@ import java.util.stream.Stream;
 /** Runs pip download for the configured target platform, then writes manifest + SHA256SUMS. */
 public class BuildService {
 
-    /** @return exit code of pip download (0 = success). */
-    public int build(Path projectDir, BuildConfig cfg, String pythonExecutable,
-                     Consumer<String> onLog, ProcessRunner runner) throws Exception {
+    /** @return a BuildSummary describing the build outcome (wheels, cache hits, size, duration). */
+    public plugin.swisskit.offlinepython.domain.BuildSummary build(
+            Path projectDir, BuildConfig cfg, String pythonExecutable,
+            Consumer<String> onLog, ProcessRunner runner) throws Exception {
         Path output = projectDir.resolve(cfg.getRepository().getOutput());
         Path wheelhouse = output.resolve(cfg.getRepository().getWheelDir());
         Files.createDirectories(wheelhouse);
 
+        int preExisting = countWheels(wheelhouse);
         Path reqs = projectDir.resolve("requirements.txt");
         List<String> cmd = ProcessRunner.pipDownloadCommand(
                 pythonExecutable,
@@ -36,12 +38,21 @@ public class BuildService {
                 cfg.getPython().getImplementation(),
                 cfg.getDownload().isOnlyBinary());
         onLog.accept("$ " + String.join(" ", cmd));
+        long start = System.currentTimeMillis();
         int code = runner.run(cmd, onLog);
-        if (code != 0) return code;
-
+        long duration = System.currentTimeMillis() - start;
+        if (code != 0) {
+            return new plugin.swisskit.offlinepython.domain.BuildSummary(preExisting, preExisting, 0L, duration);
+        }
         writeManifest(projectDir, cfg, output, wheelhouse);
         writeSha256Sums(output);
-        return 0;
+        return plugin.swisskit.offlinepython.domain.BuildSummary.compute(wheelhouse, preExisting, duration);
+    }
+
+    private int countWheels(Path wheelhouse) throws IOException {
+        try (Stream<Path> files = Files.list(wheelhouse)) {
+            return (int) files.filter(p -> p.getFileName().toString().endsWith(".whl")).count();
+        }
     }
 
     void writeManifest(Path projectDir, BuildConfig cfg, Path output, Path wheelhouse) throws IOException {

@@ -25,7 +25,8 @@ public final class DepsService {
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5)).build();
 
-    private DepsService() {}
+    /** Public no-arg ctor: DepsPanel instantiates this stateless service. */
+    public DepsService() {}
 
     /** Run `pip index versions <pkg>`, return the latest version, or empty. */
     public Optional<String> latestVersion(String pkg, String pythonExe) {

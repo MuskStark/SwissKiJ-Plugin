@@ -1,32 +1,17 @@
 package plugin.swisskit.offlinepython.ui.panel;
 
-import fan.summer.api.component.GlassNotification;
 import fan.summer.api.component.UiUtils;
 import fan.summer.api.i18n.I18n;
-import javafx.stage.DirectoryChooser;
-import plugin.swisskit.offlinepython.command.InitService;
 import plugin.swisskit.offlinepython.ui.LogConsole;
-import java.io.File;
+import plugin.swisskit.offlinepython.ui.ProjectContext;
 
 public class InitPanel extends CommandPanel {
-    public InitPanel(LogConsole log) {
-        super(log);
+    public InitPanel(LogConsole log, ProjectContext project) {
+        super(log, project);
         getChildren().add(titleNode());
-        var init = UiUtils.glassBtn("Initialize Project…", true);
-        init.setOnAction(e -> {
-            DirectoryChooser dc = new DirectoryChooser();
-            File dir = dc.showDialog(getScene().getWindow());
-            if (dir == null) return;
-            try {
-                new InitService().initialize(dir.toPath());
-                log.log("Initialized project at " + dir);
-                GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "Project initialized");
-            } catch (Exception ex) {
-                log.log("ERROR init: " + ex.getMessage());
-                GlassNotification.toast(this, GlassNotification.Type.ERROR, "Init failed");
-            }
-        });
-        getChildren().add(init);
+        getChildren().add(UiUtils.subLabel("在顶栏点「新建」创建项目，或「打开」现有项目目录。"));
+        var note = UiUtils.subLabel("init 会在项目目录生成 config.json、requirements.txt、README.md。");
+        getChildren().add(note);
     }
     @Override public String title() { return I18n.get("opb.init.title"); }
 }
