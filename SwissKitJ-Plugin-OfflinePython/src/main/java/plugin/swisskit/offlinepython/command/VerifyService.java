@@ -18,12 +18,20 @@ import java.util.List;
 public class VerifyService {
 
     public VerifyResult verify(Path outputDir, Manifest manifest) {
-        return new VerifyResult(
-                checkSha256(outputDir, manifest),
-                checkFileIntegrity(outputDir, manifest),
-                checkWheels(manifest),
-                checkRequirements(manifest),
-                checkManifest(manifest));
+        return verify(outputDir, manifest, plugin.swisskit.offlinepython.domain.VerifyScope.ALL);
+    }
+
+    public plugin.swisskit.offlinepython.domain.VerifyResult verify(
+            Path outputDir, Manifest manifest, plugin.swisskit.offlinepython.domain.VerifyScope scope) {
+        boolean all = scope == plugin.swisskit.offlinepython.domain.VerifyScope.ALL;
+        boolean integ = all || scope == plugin.swisskit.offlinepython.domain.VerifyScope.INTEGRITY;
+        boolean sha = all || scope == plugin.swisskit.offlinepython.domain.VerifyScope.SHA256;
+        return new plugin.swisskit.offlinepython.domain.VerifyResult(
+                sha ? checkSha256(outputDir, manifest) : null,
+                integ ? checkFileIntegrity(outputDir, manifest) : null,
+                all ? checkWheels(manifest) : null,
+                all ? checkRequirements(manifest) : null,
+                integ ? checkManifest(manifest) : null);
     }
 
     /** Every manifest wheel file exists and is non-empty. */
