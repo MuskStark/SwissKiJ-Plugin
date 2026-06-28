@@ -97,4 +97,23 @@ public final class OpbStyle {
     public static String sectionHeader() {
         return "-fx-text-fill: " + TEXT_PRIMARY + "; -fx-font-size: 15px; -fx-font-weight: 500;";
     }
+
+    /** Data TableCell text style: 13px, given text color, optional bold / monospace, cell padding. */
+    public static String tableCellStyle(String textColor, boolean bold, boolean mono) {
+        String s = "-fx-text-fill: " + textColor + "; -fx-font-size: 13px; -fx-padding: 4 8 4 8;";
+        if (bold) s += " -fx-font-weight: bold;";
+        if (mono) s += " -fx-font-family: monospace;";
+        return s;
+    }
+
+    /** TableRow background: zebra by index parity, accent-soft when selected. */
+    public static String tableRowStyle(boolean odd, boolean selected) {
+        String bg = selected ? ACCENT_SOFT : (odd ? GLASS_BG_HOVER : GLASS_BG);
+        return "-fx-background-color: " + bg + ";";
+    }
+
+    /** Table header label style: secondary, 11px, bold. */
+    public static String tableHeaderStyle() {
+        return "-fx-text-fill: " + TEXT_SECONDARY + "; -fx-font-size: 11px; -fx-font-weight: bold;";
+    }
 }
