@@ -441,11 +441,11 @@ public class CommandShell {
     public boolean hasRunningTasks() { return buildPanel != null && buildPanel.isRunning(); }
     public void onBackground() {}
     public void onForeground() { refreshPython(); }
-    public void onUnload() {}
+    public void onUnload() { if (buildPanel != null) buildPanel.cancel(); }
 }
 ```
 
-> Note: lifecycle/selection semantics are preserved from the current code — constructor calls `refreshPython()` then selects the first nav item; `onForeground` re-runs detection. `onUnload` is intentionally left as-is (no build cancel wiring, matching current behavior).
+> Note: lifecycle/selection semantics are preserved from the current code — constructor calls `refreshPython()` then selects the first nav item; `onForeground` re-runs detection; `onUnload` cancels any in-flight build (unchanged from original).
 
 - [ ] **Step 2: Build to verify it compiles**
 
