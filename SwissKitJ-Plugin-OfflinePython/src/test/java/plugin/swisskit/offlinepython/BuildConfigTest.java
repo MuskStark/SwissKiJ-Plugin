@@ -42,4 +42,16 @@ class BuildConfigTest {
         assertEquals("wheelhouse", cfg.getRepository().getWheelDir());
         assertEquals("official", cfg.getDownload().getMirror());
     }
+
+    @Test
+    void loadsLegacySinglePlatformConfigGracefully() {
+        // Old config.json had a single "platform" key (field now removed). Gson ignores the
+        // unknown key and `platforms` falls back to its field-initializer default ["win_amd64"]:
+        // no crash, valid list. (Non-default legacy platform values are NOT migrated — accepted
+        // on this unreleased branch where the UI never persisted a user-chosen platform.)
+        String legacyJson = "{\"python\":{\"version\":\"3.12.10\",\"platform\":\"win_amd64\"}}";
+        BuildConfig loaded = JsonStore.fromJson(legacyJson, BuildConfig.class);
+        assertEquals(List.of("win_amd64"), loaded.getPython().getPlatforms());
+        assertEquals("win_amd64", loaded.getPython().getPrimaryPlatform());
+    }
 }
