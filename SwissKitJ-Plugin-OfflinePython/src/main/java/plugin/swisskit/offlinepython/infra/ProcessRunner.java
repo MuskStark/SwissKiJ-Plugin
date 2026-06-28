@@ -55,4 +55,14 @@ public final class ProcessRunner {
         destroyed = true;
         if (process != null) process.destroyForcibly();
     }
+
+    /** Run a short command and return combined stdout (best-effort, quiet). */
+    public static String captureQuiet(String... cmd) {
+        try {
+            return new String(Runtime.getRuntime().exec(cmd).getInputStream().readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return "";
+        }
+    }
 }
