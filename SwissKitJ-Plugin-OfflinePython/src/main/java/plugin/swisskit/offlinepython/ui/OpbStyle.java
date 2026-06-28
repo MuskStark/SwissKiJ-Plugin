@@ -21,6 +21,7 @@ public final class OpbStyle {
     public static final String GLASS_BORDER    = "rgba(255,255,255,0.10)";
     public static final String TEXT_PRIMARY    = "rgba(255,255,255,0.92)";
     public static final String TEXT_SECONDARY  = "rgba(255,255,255,0.50)";
+    public static final String TEXT_TERTIARY   = "rgba(255,255,255,0.40)";
     public static final String SUCCESS         = "#4cd97b";
     public static final String SUCCESS_SOFT    = "rgba(76,217,123,0.16)";
     public static final String WARNING         = "#f5a623";
@@ -73,5 +74,27 @@ public final class OpbStyle {
         return "-fx-control-inner-background: " + LOG_INNER_BG + ";"
              + "-fx-text-fill: " + TEXT_PRIMARY + ";"
              + "-fx-font-size: 12px;";
+    }
+
+    /** Small uppercase group-label (仓库操作 / 查看与工具). */
+    public static String groupLabel() {
+        return "-fx-text-fill: " + TEXT_TERTIARY + "; -fx-font-size: 10px; -fx-font-weight: bold;";
+    }
+
+    /** Disabled (V2/V3) nav item style. */
+    public static String navItemDisabled() {
+        return "-fx-background-color: transparent; -fx-text-fill: " + TEXT_TERTIARY
+             + "; -fx-background-radius: " + NAV_RADIUS + ";";
+    }
+
+    /** Small count badge (deps 角标). */
+    public static String countBadge() {
+        return "-fx-background-color: " + ACCENT + "; -fx-text-fill: white;"
+             + " -fx-background-radius: 9; -fx-padding: 0 7 0 7; -fx-font-size: 10px;";
+    }
+
+    /** Section-header title (for panel headers). */
+    public static String sectionHeader() {
+        return "-fx-text-fill: " + TEXT_PRIMARY + "; -fx-font-size: 15px; -fx-font-weight: 500;";
     }
 }
