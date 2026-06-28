@@ -10,7 +10,8 @@ public class LogConsole extends BorderPane {
     public LogConsole() {
         area.setEditable(false);
         area.setWrapText(true);
-        area.setStyle("-fx-control-inner-background: rgba(0,0,0,0.28); -fx-text-fill: rgba(255,255,255,0.85);");
+        area.setStyle(OpbStyle.logTextAreaStyle());
+        getStyleClass().add("content-scroll");
         setCenter(area);
         setPrefHeight(168);
     }
