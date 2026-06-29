@@ -91,24 +91,21 @@ public class DepsPanel extends CommandPanel {
         HBox row2 = new HBox(8, labeled("包名", nField), labeled("版本", vField), platformBox());
         HBox.setHgrow(nField, Priority.ALWAYS);
 
-        // --- 行3：在线搜索 / 保存配置 ---
+        // --- 行3：在线搜索 / 增加配置 ---
         Button search = UiUtils.glassBtn("🔍 在线搜索", false);
         search.setTooltip(new Tooltip("从 PyPI 在线搜索该包的 wheel，选中后回填包名/版本/平台"));
         search.setOnAction(e -> doSearch());
-        Button save = UiUtils.glassBtn("保存配置", true);
-        save.setTooltip(new Tooltip("将当前包名/版本/平台写入依赖表并保存配置"));
-        save.setOnAction(e -> doSave(false));
+        Button addBtn = UiUtils.glassBtn("增加配置", true);
+        addBtn.setTooltip(new Tooltip("将当前包名/版本/平台加入依赖表并保存"));
+        addBtn.setOnAction(e -> doSave());
         Region spring3 = new Region(); HBox.setHgrow(spring3, Priority.ALWAYS);
-        HBox row3 = new HBox(8, search, spring3, save);
+        HBox row3 = new HBox(8, search, spring3, addBtn);
 
         // --- 表格列 ---
-        TableColumn<Row, String> cName = textCol("包名", 1.4, r -> r.name.get(),
-                OpbStyle.tableCellStyle(OpbStyle.TEXT_PRIMARY, true, false));
-        TableColumn<Row, String> cVer = textCol("版本约束", 1.0, r -> r.version.get(),
-                OpbStyle.tableCellStyle(OpbStyle.TEXT_SECONDARY, false, true));
+        TableColumn<Row, String> cName = textCol("包名", 1.4, r -> r.name.get());
+        TableColumn<Row, String> cVer = textCol("版本约束", 1.0, r -> r.version.get());
         TableColumn<Row, String> cPlat = perRowPlatformCol();
-        TableColumn<Row, String> cSize = textCol("预估大小", 0.9, r -> r.size.get(),
-                OpbStyle.tableCellStyle(OpbStyle.TEXT_PRIMARY, false, true));
+        TableColumn<Row, String> cSize = textCol("预估大小", 0.9, r -> r.size.get());
         TableColumn<Row, Row> cDel = new TableColumn<>("");
         cDel.setCellFactory(tc -> new TableCell<>() {
             private final Button del = UiUtils.glassBtn("✕", false);
@@ -122,13 +119,7 @@ public class DepsPanel extends CommandPanel {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         table.setFixedCellSize(30);
         table.setMinHeight(150);
-        table.setStyle("-fx-background-color: transparent; -fx-font-size: 13px; -fx-table-cell-border-color: transparent;");
-        table.setRowFactory(tv -> new javafx.scene.control.TableRow<>() {
-            @Override protected void updateItem(Row r, boolean empty) {
-                super.updateItem(r, empty);
-                setStyle(empty || r == null ? "" : OpbStyle.tableRowStyle(getIndex() % 2 == 1, isSelected()));
-            }
-        });
+        table.getStyleClass().add("glass-table");
         // 主从编辑：选中行 → 载入表单；清空 → 重置为新增态
         table.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> loadForm(nv));
 
@@ -136,11 +127,8 @@ public class DepsPanel extends CommandPanel {
         HBox opts = new HBox(18, recursive, wheelFirst, upgradePip);
         opts.setStyle("-fx-text-fill: " + OpbStyle.TEXT_SECONDARY + ";");
 
-        // --- 底栏：摘要 + 保存并去构建 ---
-        Button saveBuild = UiUtils.glassBtn("保存并去构建 →", true);
-        saveBuild.setTooltip(new Tooltip("保存当前依赖与配置后跳转构建面板"));
-        saveBuild.setOnAction(e -> doSave(true));
-        HBox summaryBar = new HBox(14, summary, spacer(), saveBuild);
+        // --- 底栏：摘要 ---
+        HBox summaryBar = new HBox(14, summary);
         summaryBar.setStyle(OpbStyle.card() + " -fx-padding: 10 14 10 14;");
         HBox.setHgrow(summaryBar, Priority.ALWAYS);
 
@@ -149,17 +137,15 @@ public class DepsPanel extends CommandPanel {
     }
 
     private TableColumn<Row, String> textCol(String title, double widthFactor,
-                                             java.util.function.Function<Row, String> value, String cellStyle) {
+                                             java.util.function.Function<Row, String> value) {
         TableColumn<Row, String> c = new TableColumn<>(title);
         c.setCellValueFactory(cb -> new javafx.beans.property.SimpleStringProperty(value.apply(cb.getValue())));
         c.setPrefWidth(widthFactor * 100);
-        c.setStyle(OpbStyle.tableHeaderStyle());
         c.setCellFactory(tc -> new TableCell<>() {
             @Override protected void updateItem(String v, boolean empty) {
                 super.updateItem(v, empty);
-                if (empty) { setText(null); setStyle(""); return; }
+                if (empty) { setText(null); return; }
                 setText(v == null || v.isBlank() ? "—" : v);
-                setStyle(cellStyle);
             }
         });
         return c;
@@ -169,11 +155,10 @@ public class DepsPanel extends CommandPanel {
     private TableColumn<Row, String> perRowPlatformCol() {
         TableColumn<Row, String> c = new TableColumn<>("目标平台");
         c.setPrefWidth(180);
-        c.setStyle(OpbStyle.tableHeaderStyle());
         c.setCellFactory(tc -> new TableCell<>() {
             @Override protected void updateItem(String v, boolean empty) {
                 super.updateItem(v, empty);
-                if (empty) { setGraphic(null); setText(null); setStyle(""); return; }
+                if (empty) { setGraphic(null); setText(null); return; }
                 int idx = getIndex();
                 List<Row> items = getTableView().getItems();
                 if (idx < 0 || idx >= items.size()) { setGraphic(null); setText(null); return; }
@@ -192,13 +177,10 @@ public class DepsPanel extends CommandPanel {
                 }
                 setGraphic(icons);
                 setText(!anyArch ? "通用" : mixedArch ? "多种架构" : firstArch);
-                setStyle(OpbStyle.tableCellStyle(WHITE, false, false));
             }
         });
         return c;
     }
-
-    private Label spacer() { Label s = new Label(); HBox.setHgrow(s, Priority.ALWAYS); return s; }
 
     private HBox labeled(String text, TextField f) {
         HBox h = new HBox(6, UiUtils.subLabel(text), f); HBox.setHgrow(f, Priority.ALWAYS); return h;
@@ -285,7 +267,7 @@ public class DepsPanel extends CommandPanel {
     }
 
     /** 提交表单（更新选中行或新增）并持久化；thenBuild=true 再跳转构建。 */
-    private void doSave(boolean thenBuild) {
+    private void doSave() {
         Path dir = project.getProjectDir();
         if (dir == null) { GlassNotification.toast(this, GlassNotification.Type.WARNING, "先打开或新建项目"); return; }
         String name = nField.getText().trim();
@@ -318,7 +300,6 @@ public class DepsPanel extends CommandPanel {
                 // 重置表单为新增态：清空选中会触发 loadForm(null)，清掉包名/版本/平台，避免二次添加
                 table.getSelectionModel().clearSelection();
             }
-            if (thenBuild) fireEventBuildNav();
         } catch (Exception e) {
             log.log("保存失败: " + e.getMessage());
             GlassNotification.toast(this, GlassNotification.Type.ERROR, "保存失败");
@@ -341,11 +322,6 @@ public class DepsPanel extends CommandPanel {
             project.saveConfig();
         }
         refreshSummary();
-    }
-
-    private void fireEventBuildNav() {
-        if (getScene() != null) getScene().getRoot().fireEvent(
-                new plugin.swisskit.offlinepython.ui.NavEvent("build"));
     }
 
     private void refreshSummary() {
