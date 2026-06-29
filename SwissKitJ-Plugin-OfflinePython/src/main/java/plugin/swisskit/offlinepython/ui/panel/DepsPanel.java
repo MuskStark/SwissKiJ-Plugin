@@ -3,7 +3,6 @@ package plugin.swisskit.offlinepython.ui.panel;
 import fan.summer.api.component.GlassNotification;
 import fan.summer.api.component.UiUtils;
 import fan.summer.api.i18n.I18n;
-import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -17,29 +16,35 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
-import plugin.swisskit.offlinepython.command.DepsService;
 import plugin.swisskit.offlinepython.domain.DependencySpec;
+import plugin.swisskit.offlinepython.domain.PlatformCatalog;
 import plugin.swisskit.offlinepython.domain.RequirementsFile;
 import plugin.swisskit.offlinepython.ui.LogConsole;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 import plugin.swisskit.offlinepython.ui.ProjectContext;
 import plugin.swisskit.offlinepython.ui.control.PlatformMultiSelect;
+import plugin.swisskit.offlinepython.ui.dialog.PyPISearchDialog;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DepsPanel extends CommandPanel {
 
-    /** Editable row backing the table (name/version/size only — platform is global). */
+    /** Editable row backing the table: name/version/size + per-row target platforms. */
     public static class Row {
         public final javafx.beans.property.SimpleStringProperty name = new javafx.beans.property.SimpleStringProperty();
         public final javafx.beans.property.SimpleStringProperty version = new javafx.beans.property.SimpleStringProperty();
         public final javafx.beans.property.SimpleStringProperty size = new javafx.beans.property.SimpleStringProperty("—");
-        public Row(String n, String v) { name.set(n); version.set(v); }
-        // PropertyValueFactory-style accessors (kept for any external binding).
+        public final List<String> platforms = new ArrayList<>(List.of("win_amd64"));
+        public Row(String n, String v, List<String> plats) {
+            name.set(n); version.set(v);
+            if (plats != null && !plats.isEmpty()) { platforms.clear(); platforms.addAll(plats); }
+        }
         public javafx.beans.property.SimpleStringProperty nameProperty() { return name; }
         public javafx.beans.property.SimpleStringProperty versionProperty() { return version; }
         public javafx.beans.property.SimpleStringProperty sizeProperty() { return size; }
@@ -50,13 +55,17 @@ public class DepsPanel extends CommandPanel {
 
     private static final String WHITE = "rgba(255,255,255,1.0)";
 
-    private final DepsService deps = new DepsService();
     private final TableView<Row> table = new TableView<>();
     private final CheckBox recursive = new CheckBox("递归");
     private final CheckBox wheelFirst = new CheckBox("wheel 优先");
     private final CheckBox upgradePip = new CheckBox("升级 pip");
     private final Label summary = new Label();
+
+    // 行2 表单：当前正在新增/编辑的这条依赖
+    private final TextField nField = new TextField();
+    private final TextField vField = new TextField();
     private final PlatformMultiSelect platformSelect = new PlatformMultiSelect();
+    private long pendingSize = 0L; // 在线搜索带回的 wheel 大小，提交时写入行
 
     public DepsPanel(LogConsole log, ProjectContext project) {
         super(log, project);
@@ -69,12 +78,34 @@ public class DepsPanel extends CommandPanel {
     private void buildUi() {
         getChildren().add(titleNode());
 
-        // --- columns ---
+        // --- 行1：导入（独占一行） ---
+        Button imp = UiUtils.glassBtn("导入 requirements.txt", false);
+        imp.setTooltip(new Tooltip("选择本地 requirements.txt 并解析为依赖表"));
+        imp.setOnAction(e -> doImport());
+        HBox row1 = new HBox(8, imp);
+
+        // --- 行2：包名 / 版本 / 目标平台（per-dep） ---
+        nField.setStyle(UiUtils.fieldStyle()); nField.setPromptText("包名");
+        vField.setStyle(UiUtils.fieldStyle()); vField.setPromptText("版本 (如 ==1.26.4)");
+        HBox row2 = new HBox(8, labeled("包名", nField), labeled("版本", vField), platformBox());
+        HBox.setHgrow(nField, Priority.ALWAYS);
+
+        // --- 行3：在线搜索 / 保存配置 ---
+        Button search = UiUtils.glassBtn("🔍 在线搜索", false);
+        search.setTooltip(new Tooltip("从 PyPI 在线搜索该包的 wheel，选中后回填包名/版本/平台"));
+        search.setOnAction(e -> doSearch());
+        Button save = UiUtils.glassBtn("保存配置", true);
+        save.setTooltip(new Tooltip("将当前包名/版本/平台写入依赖表并保存配置"));
+        save.setOnAction(e -> doSave(false));
+        Region spring3 = new Region(); HBox.setHgrow(spring3, Priority.ALWAYS);
+        HBox row3 = new HBox(8, search, spring3, save);
+
+        // --- 表格列 ---
         TableColumn<Row, String> cName = textCol("包名", 1.4, r -> r.name.get(),
                 OpbStyle.tableCellStyle(OpbStyle.TEXT_PRIMARY, true, false));
         TableColumn<Row, String> cVer = textCol("版本约束", 1.0, r -> r.version.get(),
                 OpbStyle.tableCellStyle(OpbStyle.TEXT_SECONDARY, false, true));
-        TableColumn<Row, String> cPlat = mirrorPlatformCol();
+        TableColumn<Row, String> cPlat = perRowPlatformCol();
         TableColumn<Row, String> cSize = textCol("预估大小", 0.9, r -> r.size.get(),
                 OpbStyle.tableCellStyle(OpbStyle.TEXT_PRIMARY, false, true));
         TableColumn<Row, Row> cDel = new TableColumn<>("");
@@ -91,65 +122,31 @@ public class DepsPanel extends CommandPanel {
         table.setFixedCellSize(30);
         table.setMinHeight(150);
         table.setStyle("-fx-background-color: transparent; -fx-font-size: 13px; -fx-table-cell-border-color: transparent;");
-        // zebra rows + selection highlight
         table.setRowFactory(tv -> new javafx.scene.control.TableRow<>() {
             @Override protected void updateItem(Row r, boolean empty) {
                 super.updateItem(r, empty);
                 setStyle(empty || r == null ? "" : OpbStyle.tableRowStyle(getIndex() % 2 == 1, isSelected()));
             }
         });
-        // refresh the mirror platform column whenever the global selection changes
-        platformSelect.setOnChange(sel -> table.refresh());
+        // 主从编辑：选中行 → 载入表单；清空 → 重置为新增态
+        table.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> loadForm(nv));
 
-        // --- toolbar (all secondary; platform dropdown + add on the right) ---
-        TextField search = new TextField(); search.setStyle(UiUtils.fieldStyle()); search.setPromptText("搜索包…");
-        search.textProperty().addListener((o, ov, nv) -> filterTable(nv));
-        Button imp = UiUtils.glassBtn("导入 requirements.txt", false);
-        imp.setTooltip(new Tooltip("选择本地 requirements.txt 并解析为依赖表"));
-        imp.setOnAction(e -> doImport());
-        Button pypiAdd = UiUtils.glassBtn("PyPI 查询版本", false);
-        pypiAdd.setTooltip(new Tooltip("为选中行从 PyPI 查询最新版本与 wheel 大小"));
-        pypiAdd.setOnAction(e -> doPyPIFetch());
-        Button add = UiUtils.glassBtn("+ 添加依赖", false);
-        add.setTooltip(new Tooltip("添加一行依赖，平台跟随全局目标"));
-        HBox toolbar = new HBox(8, search, imp, pypiAdd);
-        HBox.setHgrow(search, Priority.ALWAYS);
-        Region spring = new Region(); HBox.setHgrow(spring, Priority.ALWAYS);
-        toolbar.getChildren().addAll(spring, platformSelect, add);
-
-        // --- add-row form (platform is global, no per-row field) ---
-        TextField nField = new TextField(); nField.setStyle(UiUtils.fieldStyle()); nField.setPromptText("包名");
-        TextField vField = new TextField(); vField.setStyle(UiUtils.fieldStyle()); vField.setPromptText("版本 (如 ==1.26.4)");
-        add.setOnAction(e -> {
-            if (nField.getText().isBlank()) return;
-            table.getItems().add(new Row(nField.getText().trim(), vField.getText().trim()));
-            nField.clear(); vField.clear();
-            table.refresh();
-            refreshSummary();
-        });
-        HBox addRow = new HBox(8, labeled("包名", nField), labeled("版本", vField));
-        HBox.setHgrow(nField, Priority.ALWAYS);
-
-        // --- options ---
+        // --- 选项 ---
         HBox opts = new HBox(18, recursive, wheelFirst, upgradePip);
         opts.setStyle("-fx-text-fill: " + OpbStyle.TEXT_SECONDARY + ";");
 
-        // --- summary bar (secondary save + single primary CTA) ---
-        Button save = UiUtils.glassBtn("保存 requirements.txt", false);
-        save.setTooltip(new Tooltip("仅保存依赖与配置，不构建"));
-        save.setOnAction(e -> doSave(false));
+        // --- 底栏：摘要 + 保存并去构建 ---
         Button saveBuild = UiUtils.glassBtn("保存并去构建 →", true);
-        saveBuild.setTooltip(new Tooltip("保存后跳转构建面板"));
+        saveBuild.setTooltip(new Tooltip("保存当前依赖与配置后跳转构建面板"));
         saveBuild.setOnAction(e -> doSave(true));
-        HBox summaryBar = new HBox(14, summary, spacer(), save, saveBuild);
+        HBox summaryBar = new HBox(14, summary, spacer(), saveBuild);
         summaryBar.setStyle(OpbStyle.card() + " -fx-padding: 10 14 10 14;");
         HBox.setHgrow(summaryBar, Priority.ALWAYS);
 
         VBox tableBox = new VBox(6, table);
-        getChildren().addAll(toolbar, tableBox, addRow, opts, summaryBar);
+        getChildren().addAll(row1, row2, row3, tableBox, opts, summaryBar);
     }
 
-    /** Styled text column backed by a per-row value supplier. */
     private TableColumn<Row, String> textCol(String title, double widthFactor,
                                              java.util.function.Function<Row, String> value, String cellStyle) {
         TableColumn<Row, String> c = new TableColumn<>(title);
@@ -167,8 +164,8 @@ public class DepsPanel extends CommandPanel {
         return c;
     }
 
-    /** Target-platform column: ignores row data, mirrors the global PlatformMultiSelect (white text, high contrast). */
-    private TableColumn<Row, String> mirrorPlatformCol() {
+    /** 目标平台列：只读，显示该行自带的平台汇总。 */
+    private TableColumn<Row, String> perRowPlatformCol() {
         TableColumn<Row, String> c = new TableColumn<>("目标平台");
         c.setPrefWidth(150);
         c.setStyle(OpbStyle.tableHeaderStyle());
@@ -176,7 +173,10 @@ public class DepsPanel extends CommandPanel {
             @Override protected void updateItem(String v, boolean empty) {
                 super.updateItem(v, empty);
                 if (empty) { setText(null); setStyle(""); return; }
-                setText(platformSelect.summary());
+                int idx = getIndex();
+                List<Row> items = getTableView().getItems();
+                if (idx < 0 || idx >= items.size()) { setText(null); return; }
+                setText(PlatformCatalog.summary(items.get(idx).platforms));
                 setStyle(OpbStyle.tableCellStyle(WHITE, false, false));
             }
         });
@@ -189,8 +189,29 @@ public class DepsPanel extends CommandPanel {
         HBox h = new HBox(6, UiUtils.subLabel(text), f); HBox.setHgrow(f, Priority.ALWAYS); return h;
     }
 
-    private void filterTable(String q) {
-        // Search filtering omitted to keep V1 bounded; field present per spec for future.
+    private HBox platformBox() {
+        return new HBox(6, UiUtils.subLabel("目标平台"), platformSelect);
+    }
+
+    /** 载入行到表单（编辑态）；null → 重置为新增态。 */
+    private void loadForm(Row r) {
+        if (r == null) {
+            nField.clear();
+            vField.clear();
+            platformSelect.setSelected(defaultPlatforms());
+            pendingSize = 0L;
+        } else {
+            nField.setText(r.name.get());
+            vField.setText(r.version.get());
+            platformSelect.setSelected(r.platforms);
+            pendingSize = 0L;
+        }
+    }
+
+    private List<String> defaultPlatforms() {
+        return (project.getConfig() != null && project.getConfig().getPython() != null
+                && project.getConfig().getPython().getPlatforms() != null)
+                ? project.getConfig().getPython().getPlatforms() : List.of("win_amd64");
     }
 
     private void loadFromProject() {
@@ -198,13 +219,17 @@ public class DepsPanel extends CommandPanel {
         if (dir == null) return;
         try {
             Path req = dir.resolve("requirements.txt");
+            List<Row> rows = new ArrayList<>();
             if (Files.exists(req)) {
-                table.getItems().setAll(toRows(RequirementsFile.parse(Files.readString(req))));
+                Map<String, List<String>> dp = (project.getConfig() != null && project.getConfig().getPython() != null)
+                        ? project.getConfig().getPython().getDepPlatforms() : new LinkedHashMap<>();
+                List<String> defaults = defaultPlatforms();
+                for (DependencySpec d : RequirementsFile.parse(Files.readString(req))) {
+                    rows.add(new Row(d.name(), d.versionSpec(),
+                            dp.getOrDefault(DependencySpec.normalizeName(d.name()), defaults)));
+                }
             }
-            if (project.getConfig() != null && project.getConfig().getPython() != null
-                    && project.getConfig().getPython().getPlatforms() != null) {
-                platformSelect.setSelected(project.getConfig().getPython().getPlatforms());
-            }
+            table.getItems().setAll(rows);
             table.refresh();
             refreshSummary();
         } catch (Exception e) {
@@ -212,18 +237,20 @@ public class DepsPanel extends CommandPanel {
         }
     }
 
-    private List<Row> toRows(List<DependencySpec> specs) {
-        List<Row> rows = new ArrayList<>();
-        for (DependencySpec d : specs) rows.add(new Row(d.name(), d.versionSpec()));
-        return rows;
-    }
-
     private void doImport() {
         FileChooser fc = new FileChooser();
         File f = fc.showOpenDialog(getScene().getWindow());
         if (f == null) return;
         try {
-            table.getItems().setAll(toRows(RequirementsFile.parse(Files.readString(f.toPath()))));
+            Map<String, List<String>> dp = (project.getConfig() != null && project.getConfig().getPython() != null)
+                    ? project.getConfig().getPython().getDepPlatforms() : new LinkedHashMap<>();
+            List<String> defaults = defaultPlatforms();
+            List<Row> rows = new ArrayList<>();
+            for (DependencySpec d : RequirementsFile.parse(Files.readString(f.toPath()))) {
+                rows.add(new Row(d.name(), d.versionSpec(),
+                        dp.getOrDefault(DependencySpec.normalizeName(d.name()), defaults)));
+            }
+            table.getItems().setAll(rows);
             table.refresh();
             refreshSummary();
             GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已导入 requirements.txt");
@@ -232,38 +259,44 @@ public class DepsPanel extends CommandPanel {
         }
     }
 
-    private void doPyPIFetch() {
-        Row sel = table.getSelectionModel().getSelectedItem();
-        if (sel == null) { GlassNotification.toast(this, GlassNotification.Type.WARNING, "先选中一行"); return; }
-        new Thread(() -> {
-            String exe = project.getConfig() != null ? project.getConfig().getPython().getExecutable() : null;
-            var v = deps.latestVersion(sel.name.get(), exe);
-            long size = deps.fetchSizeBytes(sel.name.get(), sel.version.get(), platformSelect.primaryPlatform());
-            Platform.runLater(() -> {
-                v.ifPresent(sel.version::set);
-                sel.size.set(size > 0 ? humanSize(size) : "—");
-                table.refresh();
-                refreshSummary();
-            });
-        }, "opb-deps-pypi").start();
+    private void doSearch() {
+        PyPISearchDialog dlg = new PyPISearchDialog(getScene().getWindow());
+        dlg.showAndWait().ifPresent(w -> {
+            nField.setText(dlg.packageName());
+            vField.setText("==" + w.version());
+            platformSelect.setSelected(List.of(w.platformTag()));
+            pendingSize = w.sizeBytes();
+        });
     }
 
+    /** 提交表单（更新选中行或新增）并持久化；thenBuild=true 再跳转构建。 */
     private void doSave(boolean thenBuild) {
         Path dir = project.getProjectDir();
         if (dir == null) { GlassNotification.toast(this, GlassNotification.Type.WARNING, "先打开或新建项目"); return; }
-        try {
-            List<DependencySpec> specs = new ArrayList<>();
-            for (Row r : table.getItems()) specs.add(new DependencySpec(r.name.get(), r.version.get(), null));
-            Files.writeString(dir.resolve("requirements.txt"), RequirementsFile.write(specs));
-            if (project.getConfig() != null) {
-                project.getConfig().getDownload().setRecursive(recursive.isSelected());
-                project.getConfig().getDownload().setOnlyBinary(wheelFirst.isSelected());
-                project.getConfig().getDownload().setUpgradePip(upgradePip.isSelected());
-                project.getConfig().getPython().setPlatforms(new ArrayList<>(platformSelect.getSelected()));
-                project.saveConfig();
+        String name = nField.getText().trim();
+        boolean committed = false;
+        if (!name.isBlank()) {
+            String ver = vField.getText().trim();
+            List<String> plats = new ArrayList<>(platformSelect.getSelected());
+            Row sel = table.getSelectionModel().getSelectedItem();
+            if (sel != null) {
+                sel.name.set(name); sel.version.set(ver);
+                sel.platforms.clear(); sel.platforms.addAll(plats);
+                sel.size.set(pendingSize > 0 ? humanSize(pendingSize) : "—");
+            } else {
+                Row nr = new Row(name, ver, plats);
+                nr.size.set(pendingSize > 0 ? humanSize(pendingSize) : "—");
+                table.getItems().add(nr);
             }
-            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已保存依赖");
-            log.log("已保存 " + specs.size() + " 条依赖 · 目标 " + platformSelect.getSelected().size() + " 个平台");
+            pendingSize = 0L;
+            table.refresh();
+            committed = true;
+        }
+        try {
+            persist(dir);
+            GlassNotification.toast(this, GlassNotification.Type.SUCCESS,
+                    committed ? (table.getSelectionModel().getSelectedItem() != null ? "已更新依赖" : "已添加依赖") : "已保存配置");
+            log.log("已保存 " + table.getItems().size() + " 条依赖");
             if (thenBuild) fireEventBuildNav();
         } catch (Exception e) {
             log.log("保存失败: " + e.getMessage());
@@ -271,16 +304,31 @@ public class DepsPanel extends CommandPanel {
         }
     }
 
-    /** Ask the shell to switch to the build panel. Implemented via a custom event. */
+    private void persist(Path dir) throws Exception {
+        List<DependencySpec> specs = new ArrayList<>();
+        for (Row r : table.getItems()) specs.add(new DependencySpec(r.name.get(), r.version.get(), null));
+        Files.writeString(dir.resolve("requirements.txt"), RequirementsFile.write(specs));
+        if (project.getConfig() != null) {
+            project.getConfig().getDownload().setRecursive(recursive.isSelected());
+            project.getConfig().getDownload().setOnlyBinary(wheelFirst.isSelected());
+            project.getConfig().getDownload().setUpgradePip(upgradePip.isSelected());
+            Map<String, List<String>> dp = project.getConfig().getPython().getDepPlatforms();
+            dp.clear();
+            for (Row r : table.getItems()) {
+                dp.put(DependencySpec.normalizeName(r.name.get()), new ArrayList<>(r.platforms));
+            }
+            project.saveConfig();
+        }
+        refreshSummary();
+    }
+
     private void fireEventBuildNav() {
         if (getScene() != null) getScene().getRoot().fireEvent(
                 new plugin.swisskit.offlinepython.ui.NavEvent("build"));
     }
 
     private void refreshSummary() {
-        int n = table.getItems().size();
-        int p = platformSelect.getSelected().size();
-        summary.setText("直接 " + n + " 个依赖 · 目标 " + p + " 个平台（预估大小按主平台）");
+        summary.setText("直接 " + table.getItems().size() + " 个依赖（平台按各自目标）");
     }
 
     private static String humanSize(long bytes) {
