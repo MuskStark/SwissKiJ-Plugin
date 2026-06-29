@@ -54,4 +54,31 @@ class BuildConfigTest {
         assertEquals(List.of("win_amd64"), loaded.getPython().getPlatforms());
         assertEquals("win_amd64", loaded.getPython().getPrimaryPlatform());
     }
+
+    @Test
+    void roundTripsDepPlatformsMap(@TempDir Path tmp) throws Exception {
+        BuildConfig cfg = BuildConfig.defaults();
+        cfg.getPython().getDepPlatforms().put("numpy",
+                new java.util.ArrayList<>(List.of("win_amd64", "manylinux2014_x86_64")));
+        cfg.getPython().getDepPlatforms().put("requests",
+                new java.util.ArrayList<>(List.of("win_amd64")));
+
+        Path file = tmp.resolve("config.json");
+        JsonStore.save(cfg, file);
+        BuildConfig loaded = JsonStore.load(file, BuildConfig.class);
+
+        assertNotNull(loaded.getPython().getDepPlatforms());
+        assertEquals(List.of("win_amd64", "manylinux2014_x86_64"),
+                loaded.getPython().getDepPlatforms().get("numpy"));
+        assertEquals(List.of("win_amd64"),
+                loaded.getPython().getDepPlatforms().get("requests"));
+    }
+
+    @Test
+    void legacyConfigWithoutDepPlatformsLoadsEmptyMap() {
+        String legacyJson = "{\"python\":{\"version\":\"3.12.10\",\"platforms\":[\"win_amd64\"]}}";
+        BuildConfig loaded = JsonStore.fromJson(legacyJson, BuildConfig.class);
+        assertNotNull(loaded.getPython().getDepPlatforms());
+        assertTrue(loaded.getPython().getDepPlatforms().isEmpty());
+    }
 }

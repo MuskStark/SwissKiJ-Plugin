@@ -30,7 +30,10 @@ public @Data class BuildConfig {
 
     @Data public static class Python {
         private String version;
+        /** 新增依赖的默认目标平台（不再是构建驱动；构建驱动改为 per-dep 的 depPlatforms）。 */
         private java.util.List<String> platforms = new java.util.ArrayList<>(java.util.List.of("win_amd64"));
+        /** per-dependency 目标平台：normalizeName → 平台集合。key 用 DependencySpec.normalizeName。 */
+        private java.util.Map<String, java.util.List<String>> depPlatforms = new java.util.LinkedHashMap<>();
         private String implementation;
         private boolean installer;
         private String executable; // null = auto-detect
