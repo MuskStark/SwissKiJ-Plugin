@@ -3,6 +3,7 @@ package plugin.swisskit.offlinepython.command;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import plugin.swisskit.offlinepython.domain.PlatformCatalog;
 import plugin.swisskit.offlinepython.infra.ProcessRunner;
 
 import java.net.URI;
@@ -10,6 +11,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -77,5 +80,58 @@ public final class DepsService {
         } catch (Exception ex) {
             return 0L;
         }
+    }
+
+    /** Fetch all wheels for pkg from PyPI JSON (across releases). Empty on any failure. */
+    public List<WheelInfo> searchWheels(String pkg) {
+        if (pkg == null || pkg.isBlank()) return List.of();
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create("https://pypi.org/pypi/" + pkg.trim() + "/json"))
+                    .timeout(Duration.ofSeconds(6)).GET().build();
+            HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+            return parseWheels(resp.body());
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /** Parse PyPI JSON into wheel entries (version/platform/size/filename). Caps at 50. */
+    public static List<WheelInfo> parseWheels(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        List<WheelInfo> out = new ArrayList<>();
+        try {
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            if (!root.has("releases") || !root.get("releases").isJsonObject()) return List.of();
+            JsonObject releases = root.getAsJsonObject("releases");
+            for (String ver : releases.keySet()) {
+                JsonElement arrEl = releases.get(ver);
+                if (arrEl == null || !arrEl.isJsonArray()) continue;
+                for (JsonElement e : arrEl.getAsJsonArray()) {
+                    JsonObject o = e.getAsJsonObject();
+                    String fn = o.has("filename") ? o.get("filename").getAsString() : "";
+                    if (!fn.endsWith(".whl")) continue; // 跳过 sdist
+                    long size = o.has("size") ? o.get("size").getAsLong() : 0L;
+                    out.add(new WheelInfo(ver, extractPlatformTag(fn), size, fn));
+                }
+                if (out.size() >= 50) break;
+            }
+            return out;
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    /** Extract the platform tag (PEP 427 末段) from a wheel filename; map to a catalog tag if exact match. */
+    public static String extractPlatformTag(String filename) {
+        if (filename == null) return "";
+        String core = filename.endsWith(".whl")
+                ? filename.substring(0, filename.length() - 4) : filename;
+        String[] parts = core.split("-");
+        String raw = parts.length >= 1 ? parts[parts.length - 1] : core;
+        for (PlatformCatalog.Entry e : PlatformCatalog.ALL) {
+            if (raw.equals(e.tag())) return e.tag();
+        }
+        return raw;
     }
 }

@@ -2,7 +2,9 @@ package plugin.swisskit.offlinepython;
 
 import org.junit.jupiter.api.Test;
 import plugin.swisskit.offlinepython.command.DepsService;
+import plugin.swisskit.offlinepython.command.WheelInfo;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -48,5 +50,45 @@ class DepsServiceTest {
             ]}
             """;
         assertEquals(17000000L, DepsService.parsePyPIWheelSize(json, "win_amd64", "1.26.4"));
+    }
+
+    @Test
+    void parsesWheelsFromPypiReleasesJson() {
+        String json = """
+            { "releases": {
+              "1.26.4": [
+                {"filename":"numpy-1.26.4-cp312-cp312-win_amd64.whl","size":19098624},
+                {"filename":"numpy-1.26.4.tar.gz","size":1000}
+              ],
+              "1.25.2": [
+                {"filename":"numpy-1.25.2-cp312-cp312-manylinux2014_x86_64.whl","size":17800000}
+              ]
+            }}""";
+        List<WheelInfo> wheels = DepsService.parseWheels(json);
+        assertEquals(2, wheels.size()); // .tar.gz 被过滤
+        assertTrue(wheels.stream().anyMatch(w ->
+                w.platformTag().equals("win_amd64") && w.version().equals("1.26.4")));
+        assertTrue(wheels.stream().anyMatch(w ->
+                w.platformTag().equals("manylinux2014_x86_64") && w.version().equals("1.25.2")));
+    }
+
+    @Test
+    void parseWheelsEmptyOnGarbage() {
+        assertTrue(DepsService.parseWheels("").isEmpty());
+        assertTrue(DepsService.parseWheels("not json").isEmpty());
+        assertTrue(DepsService.parseWheels(null).isEmpty());
+    }
+
+    @Test
+    void extractPlatformTagFromWheelFilename() {
+        assertEquals("win_amd64",
+                DepsService.extractPlatformTag("numpy-1.26.4-cp312-cp312-win_amd64.whl"));
+        assertEquals("manylinux2014_x86_64",
+                DepsService.extractPlatformTag("numpy-1.26.4-cp312-cp312-manylinux2014_x86_64.whl"));
+        assertEquals("any",
+                DepsService.extractPlatformTag("pkg-1.0-py3-none-any.whl"));
+        // 目录外标签原样透传（pip 仍接受）
+        assertEquals("manylinux_2_28_x86_64",
+                DepsService.extractPlatformTag("numpy-2.0-pp39-pypy39_pp73-manylinux_2_28_x86_64.whl"));
     }
 }
