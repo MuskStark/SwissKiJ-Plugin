@@ -47,6 +47,17 @@ JavaFX 节点无单测；**Task 5 Step 4 的 DevLauncher 手动验证尚未执�
 - 在线搜索：弹窗搜 `numpy` → 列出 wheel → 选 win_amd64 → 回填包名/版本/平台/大小。
 - 构建：日志按平台集合分组出现多条 `$ pip download ... --platform ...`；`manifest.json` 的 `python.platforms` 为所有依赖平台并集。
 
+## 第一轮手动验证（2026-06-29）：发现 4 个问题，已修复
+
+用户在 DevLauncher 手动验证时报告 4 个问题，均已修复（提交 `443dded`、`2e44d45`，76/76 绿）：
+
+1. **保存配置后表单未清空 → 保存并构建重复添加。** 修：`doSave` 提交后清空选中，触发 `loadForm(null)` 重置包名/版本/平台。
+2. **在线搜索对话框未套主题，输入框与内容不可见。** 修：`Themes.applyTo(scene)` + `.glass-dialog`/`.glass-field`/`.glass-table` + 不透明深色 scene fill。
+3. **依赖只能添加不能删除**（✕ 不渲染——删除列无 `cellValueFactory`，`r==null` 永真使按钮 graphic 永不设置）；**改版本会带改/新增平台**（表单状态在操作间泄漏）。修：删除列按 `empty` 渲染按钮 + 表单保存后重置。
+4. **目标平台用图标区分。** 修：新增 `PlatformCatalog.iconOf(tag)`（win→microsoft-windows / manylinux·linux→linux / macosx→apple / else cube，单测覆盖）+ 在目标平台列与下拉菜单项渲染 MDI 图标。
+
+⚠️ 这些修复的**运行时 UI 行为仍需用户在 DevLauncher 复验**（headless 环境无法自验 JavaFX）。
+
 ## 环境备注（续接者必读）
 
 - **Maven 未在 PATH**。本机会话用直接下载的 binary：`MVN=~/tools/apache-maven-3.9.16/bin/mvn`，配合 `JAVA_HOME=/Users/phoebej/Library/Java/JavaVirtualMachines/azul-21.0.11/Contents/Home`（项目 target 21；勿用默认 JDK 25）。Homebrew 的 `brew install maven` 在本机未持久化（`brew info maven` 显示 Not installed），故用上述独立 binary。
