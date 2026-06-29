@@ -42,6 +42,33 @@ public final class PlatformCatalog {
         return "cube"; // any / generic / unknown
     }
 
+    /** Architecture family parsed from a tag (e.g. "x86_64", "aarch64", "arm64", "x86", "arm");
+     *  "" when not applicable (e.g. "any"). Works for out-of-catalog tags by suffix. */
+    public static String archOf(String tag) {
+        if (tag == null) return "";
+        String t = tag.toLowerCase();
+        if (t.endsWith("amd64") || t.endsWith("x86_64")) return "x86_64";
+        if (t.endsWith("aarch64")) return "aarch64";
+        if (t.endsWith("arm64")) return "arm64";
+        if (t.equals("win32") || t.endsWith("i386") || t.endsWith("i686")) return "x86";
+        if (t.endsWith("armv7l")) return "arm";
+        return ""; // any / unknown
+    }
+
+    /** Bit width (32 / 64) parsed from a tag; 0 when not applicable (e.g. "any"). */
+    public static int bitsOf(String tag) {
+        String a = archOf(tag);
+        if (a.isEmpty()) return 0;
+        return (a.equals("x86") || a.equals("arm")) ? 32 : 64;
+    }
+
+    /** Compact "arch · N-bit" label for a tag (e.g. "x86_64 · 64-bit"); "" for pure-Python (any). */
+    public static String archBitsLabel(String tag) {
+        String a = archOf(tag);
+        if (a.isEmpty()) return "";
+        return a + " · " + bitsOf(tag) + "-bit";
+    }
+
     /**
      * Compact summary for a selection: one item → its tag; two → "a、b"; three+ → "a、b +N".
      * Used by both the dropdown button text and the table's target-platform column.

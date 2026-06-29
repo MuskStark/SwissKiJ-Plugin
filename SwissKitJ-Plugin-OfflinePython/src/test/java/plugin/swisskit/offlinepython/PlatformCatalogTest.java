@@ -62,6 +62,24 @@ class PlatformCatalogTest {
     }
 
     @Test
+    void archAndBitsParsedFromTag() {
+        assertEquals("x86_64", PlatformCatalog.archOf("win_amd64"));
+        assertEquals("x86_64", PlatformCatalog.archOf("manylinux2014_x86_64"));
+        assertEquals("aarch64", PlatformCatalog.archOf("manylinux2014_aarch64"));
+        assertEquals("arm64", PlatformCatalog.archOf("macosx_11_0_arm64"));
+        assertEquals("x86", PlatformCatalog.archOf("win32"));
+        assertEquals("", PlatformCatalog.archOf("any"));
+        assertEquals(64, PlatformCatalog.bitsOf("win_amd64"));
+        assertEquals(32, PlatformCatalog.bitsOf("win32"));
+        assertEquals(0, PlatformCatalog.bitsOf("any"));
+        assertEquals("x86_64 · 64-bit", PlatformCatalog.archBitsLabel("manylinux2014_x86_64"));
+        assertEquals("x86 · 32-bit", PlatformCatalog.archBitsLabel("win32"));
+        assertEquals("", PlatformCatalog.archBitsLabel("any"));
+        // out-of-catalog tag still parsed by suffix
+        assertEquals("x86_64", PlatformCatalog.archOf("manylinux_2_28_x86_64"));
+    }
+
+    @Test
     void toggleAddsMissingTag() {
         assertEquals(List.of("win_amd64", "any"),
                 PlatformCatalog.toggle(List.of("win_amd64"), "any"));

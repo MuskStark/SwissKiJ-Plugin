@@ -179,13 +179,19 @@ public class DepsPanel extends CommandPanel {
                 if (idx < 0 || idx >= items.size()) { setGraphic(null); setText(null); return; }
                 List<String> plats = items.get(idx).platforms;
                 HBox icons = new HBox(3);
+                String firstArch = null; boolean mixedArch = false; boolean anyArch = false;
                 for (String p : plats) {
                     var ic = MdiIconUtil.createIcon(PlatformCatalog.iconOf(p), 14, WHITE);
                     Tooltip.install(ic, new Tooltip(PlatformCatalog.labelOf(p)));
                     icons.getChildren().add(ic);
+                    String ab = PlatformCatalog.archBitsLabel(p);
+                    if (!ab.isEmpty()) {
+                        anyArch = true;
+                        if (firstArch == null) firstArch = ab; else if (!firstArch.equals(ab)) mixedArch = true;
+                    }
                 }
                 setGraphic(icons);
-                setText(PlatformCatalog.summary(plats));
+                setText(!anyArch ? "通用" : mixedArch ? "多种架构" : firstArch);
                 setStyle(OpbStyle.tableCellStyle(WHITE, false, false));
             }
         });
