@@ -1,5 +1,6 @@
 package plugin.swisskit.offlinepython.ui.panel;
 
+import fan.summer.api.MdiIconUtil;
 import fan.summer.api.component.GlassNotification;
 import fan.summer.api.component.UiUtils;
 import fan.summer.api.i18n.I18n;
@@ -114,7 +115,7 @@ public class DepsPanel extends CommandPanel {
             { del.setTooltip(new Tooltip("删除该行"));
               del.setOnAction(e -> { table.getItems().remove(getIndex()); refreshSummary(); }); }
             @Override protected void updateItem(Row r, boolean empty) {
-                super.updateItem(r, empty); setGraphic(empty || r == null ? null : del);
+                super.updateItem(r, empty); setGraphic(empty ? null : del);
             }
         });
         table.getColumns().addAll(cName, cVer, cPlat, cSize, cDel);
@@ -164,19 +165,27 @@ public class DepsPanel extends CommandPanel {
         return c;
     }
 
-    /** 目标平台列：只读，显示该行自带的平台汇总。 */
+    /** 目标平台列：只读，按平台 OS 图标区分（每平台一个 MDI 图标 + 文本汇总）。 */
     private TableColumn<Row, String> perRowPlatformCol() {
         TableColumn<Row, String> c = new TableColumn<>("目标平台");
-        c.setPrefWidth(150);
+        c.setPrefWidth(180);
         c.setStyle(OpbStyle.tableHeaderStyle());
         c.setCellFactory(tc -> new TableCell<>() {
             @Override protected void updateItem(String v, boolean empty) {
                 super.updateItem(v, empty);
-                if (empty) { setText(null); setStyle(""); return; }
+                if (empty) { setGraphic(null); setText(null); setStyle(""); return; }
                 int idx = getIndex();
                 List<Row> items = getTableView().getItems();
-                if (idx < 0 || idx >= items.size()) { setText(null); return; }
-                setText(PlatformCatalog.summary(items.get(idx).platforms));
+                if (idx < 0 || idx >= items.size()) { setGraphic(null); setText(null); return; }
+                List<String> plats = items.get(idx).platforms;
+                HBox icons = new HBox(3);
+                for (String p : plats) {
+                    var ic = MdiIconUtil.createIcon(PlatformCatalog.iconOf(p), 14, WHITE);
+                    Tooltip.install(ic, new Tooltip(PlatformCatalog.labelOf(p)));
+                    icons.getChildren().add(ic);
+                }
+                setGraphic(icons);
+                setText(PlatformCatalog.summary(plats));
                 setStyle(OpbStyle.tableCellStyle(WHITE, false, false));
             }
         });
@@ -275,11 +284,13 @@ public class DepsPanel extends CommandPanel {
         if (dir == null) { GlassNotification.toast(this, GlassNotification.Type.WARNING, "先打开或新建项目"); return; }
         String name = nField.getText().trim();
         boolean committed = false;
+        boolean updating = false;
         if (!name.isBlank()) {
             String ver = vField.getText().trim();
             List<String> plats = new ArrayList<>(platformSelect.getSelected());
             Row sel = table.getSelectionModel().getSelectedItem();
-            if (sel != null) {
+            updating = sel != null;
+            if (updating) {
                 sel.name.set(name); sel.version.set(ver);
                 sel.platforms.clear(); sel.platforms.addAll(plats);
                 sel.size.set(pendingSize > 0 ? humanSize(pendingSize) : "—");
@@ -295,8 +306,12 @@ public class DepsPanel extends CommandPanel {
         try {
             persist(dir);
             GlassNotification.toast(this, GlassNotification.Type.SUCCESS,
-                    committed ? (table.getSelectionModel().getSelectedItem() != null ? "已更新依赖" : "已添加依赖") : "已保存配置");
+                    committed ? (updating ? "已更新依赖" : "已添加依赖") : "已保存配置");
             log.log("已保存 " + table.getItems().size() + " 条依赖");
+            if (committed) {
+                // 重置表单为新增态：清空选中会触发 loadForm(null)，清掉包名/版本/平台，避免二次添加
+                table.getSelectionModel().clearSelection();
+            }
             if (thenBuild) fireEventBuildNav();
         } catch (Exception e) {
             log.log("保存失败: " + e.getMessage());

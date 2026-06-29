@@ -29,6 +29,19 @@ public final class PlatformCatalog {
         return tag;
     }
 
+    /** MDI (Material Design Icons) name for a tag's OS family, to render a distinguishing
+     *  icon in the UI. Maps by prefix so it works for any tag (incl. out-of-catalog ones
+     *  from PyPI): win -> microsoft-windows, manylinux or linux -> linux,
+     *  macosx or darwin -> apple, otherwise cube (any / generic). */
+    public static String iconOf(String tag) {
+        if (tag == null) return "cube";
+        String t = tag.toLowerCase();
+        if (t.startsWith("win")) return "microsoft-windows";
+        if (t.startsWith("manylinux") || t.startsWith("linux")) return "linux";
+        if (t.startsWith("macosx") || t.startsWith("macos") || t.startsWith("darwin")) return "apple";
+        return "cube"; // any / generic / unknown
+    }
+
     /**
      * Compact summary for a selection: one item → its tag; two → "a、b"; three+ → "a、b +N".
      * Used by both the dropdown button text and the table's target-platform column.

@@ -49,6 +49,19 @@ class PlatformCatalogTest {
     }
 
     @Test
+    void iconOfMapsPlatformTagToOsIcon() {
+        assertEquals("microsoft-windows", PlatformCatalog.iconOf("win_amd64"));
+        assertEquals("microsoft-windows", PlatformCatalog.iconOf("win32"));
+        assertEquals("linux", PlatformCatalog.iconOf("manylinux2014_x86_64"));
+        assertEquals("linux", PlatformCatalog.iconOf("manylinux2014_aarch64"));
+        assertEquals("apple", PlatformCatalog.iconOf("macosx_11_0_arm64"));
+        assertEquals("cube", PlatformCatalog.iconOf("any"));
+        // out-of-catalog tags (e.g. from PyPI) still map by prefix
+        assertEquals("linux", PlatformCatalog.iconOf("manylinux_2_28_x86_64"));
+        assertEquals("cube", PlatformCatalog.iconOf(null));
+    }
+
+    @Test
     void toggleAddsMissingTag() {
         assertEquals(List.of("win_amd64", "any"),
                 PlatformCatalog.toggle(List.of("win_amd64"), "any"));

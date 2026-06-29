@@ -1,5 +1,6 @@
 package plugin.swisskit.offlinepython.ui.control;
 
+import fan.summer.api.MdiIconUtil;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.CheckMenuItem;
 import plugin.swisskit.offlinepython.domain.PlatformCatalog;
@@ -31,6 +32,7 @@ public class PlatformMultiSelect extends MenuButton {
         getItems().clear();
         for (PlatformCatalog.Entry e : PlatformCatalog.ALL) {
             CheckMenuItem mi = new CheckMenuItem(PlatformCatalog.labelOf(e.tag()) + "  (" + e.tag() + ")");
+            mi.setGraphic(MdiIconUtil.createIcon(PlatformCatalog.iconOf(e.tag()), 14, OpbStyle.TEXT_PRIMARY));
             mi.setSelected(selected.contains(e.tag()));
             mi.selectedProperty().addListener((o, ov, nv) -> {
                 if (updating) return;
