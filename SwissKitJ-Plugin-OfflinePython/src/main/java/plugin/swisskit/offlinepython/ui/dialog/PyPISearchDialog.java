@@ -2,6 +2,7 @@ package plugin.swisskit.offlinepython.ui.dialog;
 
 import fan.summer.api.component.GlassNotification;
 import fan.summer.api.component.UiUtils;
+import fan.summer.api.theme.Themes;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
@@ -13,12 +14,12 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import plugin.swisskit.offlinepython.command.DepsService;
 import plugin.swisskit.offlinepython.command.WheelInfo;
-import plugin.swisskit.offlinepython.ui.OpbStyle;
 
 import java.util.List;
 import java.util.Optional;
@@ -41,7 +42,7 @@ public class PyPISearchDialog {
     }
 
     private void buildUi() {
-        query.setStyle(UiUtils.fieldStyle());
+        query.getStyleClass().add("glass-field");
         query.setPromptText("输入包名，如 numpy");
         search.setOnAction(e -> doSearch());
         query.setOnAction(e -> doSearch());
@@ -53,6 +54,7 @@ public class PyPISearchDialog {
         TableColumn<WheelInfo, String> cSize = col("大小", w -> human(w.sizeBytes()));
         TableColumn<WheelInfo, String> cFn = col("文件名", WheelInfo::filename);
         table.getColumns().addAll(cVer, cPlat, cSize, cFn);
+        table.getStyleClass().add("glass-table");
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         table.setPrefHeight(320);
         table.setPlaceholder(new Label("输入包名并搜索"));
@@ -67,8 +69,11 @@ public class PyPISearchDialog {
         HBox actions = new HBox(8, cancel, ok);
         VBox root = new VBox(10, bar, table, actions);
         root.setPadding(new Insets(16));
-        root.setStyle(OpbStyle.card());
-        stage.setScene(new Scene(root, 600, 460));
+        root.getStyleClass().add("glass-dialog");
+        Scene scene = new Scene(root, 600, 460);
+        scene.setFill(Color.rgb(20, 21, 25));
+        Themes.applyTo(scene);
+        stage.setScene(scene);
     }
 
     private static TableColumn<WheelInfo, String> col(String title, java.util.function.Function<WheelInfo, String> get) {
