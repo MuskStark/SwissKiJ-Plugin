@@ -18,19 +18,23 @@ public final class ProcessRunner {
     private Process process;
     private volatile boolean destroyed;
 
-    /** Build the platform-targeted pip download command list. Emits one --platform per
-     *  selected platform (pip accepts repeated --platform). Empty selection falls back to "any". */
-    public static List<String> pipDownloadCommand(String python, String requirements,
+    /** Build the platform-targeted pip download command list. Requirement specs are passed
+     *  inline as positional args (pip accepts multiple). One --platform is emitted per selected
+     *  platform (empty selection falls back to "any"). recursive=false adds --no-deps. */
+    public static List<String> pipDownloadCommand(String python, List<String> requirementSpecs,
                                                   String destDir, List<String> platforms,
                                                   String pythonVersion, String implementation,
-                                                  boolean onlyBinary) {
+                                                  boolean onlyBinary, boolean recursive) {
         List<String> cmd = new ArrayList<>();
         cmd.add(python);
-        cmd.addAll(List.of("-m", "pip", "download", "-r", requirements, "-d", destDir));
+        cmd.addAll(List.of("-m", "pip", "download"));
+        if (requirementSpecs != null) cmd.addAll(requirementSpecs);
+        cmd.addAll(List.of("-d", destDir));
         List<String> plats = (platforms == null || platforms.isEmpty()) ? List.of("any") : platforms;
         for (String p : plats) cmd.addAll(List.of("--platform", p));
         cmd.addAll(List.of("--python-version", pythonVersion, "--implementation", implementation));
         if (onlyBinary) cmd.add("--only-binary=:all:");
+        if (!recursive) cmd.add("--no-deps");
         return cmd;
     }
 
