@@ -19,12 +19,12 @@ public class KeepAwakePlugin implements SwissKitJPlugin {
 
     @Override
     public String getName() {
-        return "KeepAwake";
+        return I18n.get("plugin.keepawake.name");
     }
 
     @Override
     public String getDescription() {
-        return "Prevent screensaver and display sleep";
+        return I18n.get("plugin.keepawake.desc");
     }
 
     @Override

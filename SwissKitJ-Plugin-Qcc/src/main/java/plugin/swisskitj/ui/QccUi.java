@@ -3,10 +3,8 @@ package plugin.swisskitj.ui;
 import fan.summer.api.component.GlassNotification;
 import fan.summer.api.i18n.I18n;
 import javafx.application.Platform;
-import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -17,16 +15,25 @@ import plugin.swisskitj.QccWorker;
 import java.io.File;
 import java.nio.file.Path;
 
+/**
+ * Qichacha CSV → styled Excel converter UI.
+ *
+ * <p>Themed exclusively with SwissKitJ {@code -sk-*} design tokens and {@code .sk-*}
+ * foundation classes so it reads as a native host surface in both dark and light
+ * themes. No inline hex, no custom font family (host's global font stack applies).
+ */
 public class QccUi {
 
-    private static final String BG = "#1a1a2e";
-    private static final String CARD_BG = "#16213e";
-    private static final String ACCENT = "#e2b714";
-    private static final String ACCENT_GREEN = "#00e676";
-    private static final String ACCENT_RED = "#ff5252";
-    private static final String TEXT_DIM = "#8892b0";
-    private static final String TEXT_BRIGHT = "#ccd6f6";
-    private static final String DIVIDER = "#233554";
+    /** SwissKitJ design tokens (looked-up colors — resolve per-theme on the scene root). */
+    private static final String BG       = "-sk-bg";
+    private static final String CARD_BG  = "-sk-bg-elevated";
+    private static final String BORDER   = "-sk-border";
+    private static final String TEXT     = "-sk-text";
+    private static final String TEXT_SEC = "-sk-text-secondary";
+    private static final String TEXT_DIM = "-sk-text-disabled";
+    private static final String ACCENT   = "-sk-accent";
+    private static final String SUCCESS  = "-sk-success";
+    private static final String DANGER   = "-sk-danger";
 
     private final VBox root = new VBox();
     private final TextField sourceField = new TextField();
@@ -67,24 +74,24 @@ public class QccUi {
 
         // ── Header ──
         Label header = new Label("✈  QCC DATA BOARD");
-        header.setStyle("-fx-text-fill: " + ACCENT + "; -fx-font-size: 14px;"
-                + " -fx-font-weight: bold; -fx-font-family: 'Menlo', 'Consolas', monospace;");
+        header.getStyleClass().add("sk-accent-text");
+        header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
         header.setMaxWidth(Double.MAX_VALUE);
         header.setAlignment(Pos.CENTER);
-        header.setPadding(new Insets(0, 0, 10, 0));
+        header.setPadding(new Insets(0, 0, 12, 0));
 
         // ── Source File Row ──
         sourceField.setEditable(false);
-        styleTextField(sourceField);
-        styleSmallButton(selectSourceBtn, ACCENT);
+        sourceField.getStyleClass().add("sk-field");
+        selectSourceBtn.getStyleClass().add("sk-btn-secondary");
         I18n.bind(selectSourceBtn.textProperty(), p + "choiceFile");
 
         HBox sourceRow = buildRow("SOURCE ", sourceField, selectSourceBtn);
 
         // ── Output Dir Row ──
         outputField.setEditable(false);
-        styleTextField(outputField);
-        styleSmallButton(selectOutputBtn, ACCENT);
+        outputField.getStyleClass().add("sk-field");
+        selectOutputBtn.getStyleClass().add("sk-btn-secondary");
         I18n.bind(selectOutputBtn.textProperty(), p + "choiceOutPutPath");
 
         HBox outputRow = buildRow("OUTPUT ", outputField, selectOutputBtn);
@@ -97,32 +104,31 @@ public class QccUi {
         Label progressKey = buildKeyLabel("PROGRESS");
         Label sep1 = buildSep();
 
-        progressBar.setPrefHeight(14);
+        progressBar.setPrefHeight(6);
         progressBar.setMaxWidth(Double.MAX_VALUE);
-        progressBar.setStyle("-fx-accent: " + ACCENT_GREEN + ";");
+        progressBar.setStyle("-fx-accent: " + ACCENT + ";");
         HBox.setHgrow(progressBar, Priority.ALWAYS);
 
-        progressPercent.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace;"
-                + " -fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: " + ACCENT + ";");
+        progressPercent.getStyleClass().add("sk-t2");
+        progressPercent.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
         progressPercent.setMinWidth(40);
         progressPercent.setAlignment(Pos.CENTER_RIGHT);
 
-        StackPane barOverlay = new StackPane(progressBar, progressPercent);
-        progressPercent.setStyle("-fx-font-size: 10px; -fx-font-weight: bold;"
-                + " -fx-text-fill: white; -fx-effect: dropshadow(gaussian, black, 1, 0.8, 0, 0);");
-        HBox.setHgrow(barOverlay, Priority.ALWAYS);
+        HBox barRow = new HBox(8, progressBar, progressPercent);
+        HBox.setHgrow(barRow, Priority.ALWAYS);
 
-        progressRow.getChildren().addAll(progressKey, sep1, barOverlay);
+        progressRow.getChildren().addAll(progressKey, sep1, barRow);
 
         // ── Status ──
         statusLabel.setText("—");
-        statusLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
-                + " -fx-text-fill: " + TEXT_DIM + ";");
+        statusLabel.getStyleClass().add("sk-t2");
+        statusLabel.setStyle("-fx-font-size: 11px;");
         statusLabel.setPadding(new Insets(6, 0, 2, 0));
 
         // ── Board Card ──
         VBox board = new VBox();
-        board.setStyle("-fx-background-color: " + CARD_BG + "; -fx-background-radius: 6;");
+        board.setStyle("-fx-background-color: " + CARD_BG + "; -fx-background-radius: 8;"
+                + "-fx-border-color: " + BORDER + "; -fx-border-width: 1; -fx-border-radius: 8;");
         board.setPadding(new Insets(14, 16, 14, 16));
         board.setSpacing(2);
         board.getChildren().addAll(
@@ -132,8 +138,8 @@ public class QccUi {
                 statusLabel
         );
 
-        // ── Convert Button ──
-        styleButton(convertBtn, ACCENT, BG);
+        // ── Convert Button (the single primary action on this screen) ──
+        convertBtn.getStyleClass().add("sk-btn-primary");
         I18n.bind(convertBtn.textProperty(), p + "qccToExcel");
 
         HBox btnRow = new HBox(convertBtn);
@@ -166,50 +172,24 @@ public class QccUi {
 
     private Label buildKeyLabel(String key) {
         Label label = new Label(key);
-        label.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
-                + " -fx-font-size: 11px; -fx-font-weight: bold;");
+        label.getStyleClass().add("sk-t3");
+        label.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
         label.setMinWidth(85);
         return label;
     }
 
     private Label buildSep() {
         Label sep = new Label(" │ ");
-        sep.setStyle("-fx-text-fill: " + DIVIDER + "; -fx-font-family: monospace; -fx-font-size: 11px;");
+        sep.setStyle("-fx-text-fill: " + BORDER + "; -fx-font-size: 11px;");
         return sep;
     }
 
     private Node divider() {
         Region d = new Region();
-        d.setStyle("-fx-background-color: " + DIVIDER + ";");
+        d.setStyle("-fx-background-color: " + BORDER + ";");
         d.setPrefHeight(1);
         VBox.setMargin(d, new Insets(5, 0, 5, 0));
         return d;
-    }
-
-    // ==================== Style Helpers ====================
-
-    private void styleTextField(TextField field) {
-        field.setStyle("-fx-background-color: #0f3460; -fx-text-fill: " + TEXT_BRIGHT + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
-                + " -fx-background-radius: 3; -fx-padding: 4 8 4 8;"
-                + " -fx-border-color: " + DIVIDER + "; -fx-border-radius: 3;");
-    }
-
-    private void styleSmallButton(Button btn, String color) {
-        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: " + BG + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 10px;"
-                + " -fx-font-weight: bold; -fx-background-radius: 3; -fx-padding: 4 12 4 12;");
-        btn.setCursor(Cursor.HAND);
-    }
-
-    private void styleButton(Button btn, String bgColor, String textColor) {
-        btn.setStyle("-fx-background-color: " + bgColor + ";"
-                + " -fx-text-fill: " + textColor + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
-                + " -fx-font-size: 11px; -fx-font-weight: bold;"
-                + " -fx-background-radius: 4; -fx-padding: 7 24 7 24;");
-        btn.setCursor(Cursor.HAND);
     }
 
     // ==================== Event Handlers ====================
@@ -255,8 +235,9 @@ public class QccUi {
         progressBar.setProgress(0);
         progressPercent.setText("0%");
         statusLabel.setText(I18n.get("plugin.qcc.processing"));
-        statusLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
-                + " -fx-text-fill: " + ACCENT + ";");
+        statusLabel.getStyleClass().setAll("sk-accent-text");
+        statusLabel.setStyle("-fx-font-size: 11px;");
+        progressBar.setStyle("-fx-accent: " + ACCENT + ";");
 
         activeWorker = new QccWorker(source, outputPath);
 
@@ -276,9 +257,9 @@ public class QccUi {
             progressBar.setProgress(1.0);
             progressPercent.setText("100%");
             statusLabel.setText(I18n.get("plugin.qcc.done") + " — " + outputPath);
-            statusLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
-                    + " -fx-text-fill: " + ACCENT_GREEN + ";");
-            progressBar.setStyle("-fx-accent: #4caf50;");
+            statusLabel.getStyleClass().setAll("sk-success-text");
+            statusLabel.setStyle("-fx-font-size: 11px;");
+            progressBar.setStyle("-fx-accent: " + SUCCESS + ";");
         });
 
         activeWorker.setOnFailed(e -> {
@@ -289,8 +270,8 @@ public class QccUi {
             progressPercent.setText("ERR");
             String errorMsg = ex != null ? ex.getMessage() : I18n.get("plugin.qcc.error");
             statusLabel.setText(I18n.get("plugin.qcc.error") + ": " + errorMsg);
-            statusLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
-                    + " -fx-text-fill: " + ACCENT_RED + ";");
+            statusLabel.getStyleClass().setAll("sk-danger-text");
+            statusLabel.setStyle("-fx-font-size: 11px;");
             GlassNotification.toast(root, GlassNotification.Type.ERROR,
                     I18n.get("plugin.qcc.conversionFailed") + ": " + errorMsg);
         });

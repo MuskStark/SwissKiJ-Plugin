@@ -18,12 +18,12 @@ public class QccPlugin implements SwissKitJPlugin {
 
     @Override
     public String getName() {
-        return "QccToExcel";
+        return I18n.get("plugin.qcc.name");
     }
 
     @Override
     public String getDescription() {
-        return "Convert Qichacha CSV data to styled Excel";
+        return I18n.get("plugin.qcc.desc");
     }
 
     @Override

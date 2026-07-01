@@ -54,7 +54,7 @@ public class DepsPanel extends CommandPanel {
         }
     }
 
-    private static final String WHITE = "rgba(255,255,255,1.0)";
+    private static final String WHITE = OpbStyle.TEXT_PRIMARY;
 
     private final TableView<Row> table = new TableView<>();
     private final CheckBox recursive = new CheckBox("递归");
@@ -119,7 +119,7 @@ public class DepsPanel extends CommandPanel {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         table.setFixedCellSize(30);
         table.setMinHeight(150);
-        table.getStyleClass().add("glass-table");
+        table.getStyleClass().add("sk-table");
         // 主从编辑：选中行 → 载入表单；清空 → 重置为新增态
         table.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> loadForm(nv));
 

@@ -36,7 +36,8 @@ public class BuildPanel extends CommandPanel {
         getChildren().add(titleNode());
 
         banner.setStyle("-fx-background-color: " + plugin.swisskit.offlinepython.ui.OpbStyle.ACCENT_SOFT
-                + "; -fx-text-fill: #cfe0ff; -fx-background-radius: 10; -fx-padding: 9 12 9 12;");
+                + "; -fx-text-fill: " + plugin.swisskit.offlinepython.ui.OpbStyle.ACCENT
+                + "; -fx-background-radius: 10; -fx-padding: 9 12 9 12;");
         refreshBanner();
 
         build = UiUtils.glassBtn("▶ 构建", true);
@@ -116,8 +117,8 @@ public class BuildPanel extends CommandPanel {
         addTile(3, "缓存命中", s.cacheHits() + "");
     }
     private void addTile(int col, String label, String value) {
-        Label l = new Label(label); l.setStyle("-fx-text-fill: rgba(255,255,255,0.45); -fx-font-size: 10px;");
-        Label v = new Label(value); v.setStyle("-fx-text-fill: rgba(255,255,255,0.92); -fx-font-size: 16px; -fx-font-weight: 600;");
+        Label l = new Label(label); l.setStyle("-fx-text-fill: " + plugin.swisskit.offlinepython.ui.OpbStyle.TEXT_TERTIARY + "; -fx-font-size: 10px;");
+        Label v = new Label(value); v.setStyle("-fx-text-fill: " + plugin.swisskit.offlinepython.ui.OpbStyle.TEXT_PRIMARY + "; -fx-font-size: 16px; -fx-font-weight: 600;");
         javafx.scene.layout.VBox box = new javafx.scene.layout.VBox(2, l, v);
         box.setStyle(plugin.swisskit.offlinepython.ui.OpbStyle.card() + " -fx-padding: 10; -fx-alignment: center;");
         tiles.add(box, col, 0);

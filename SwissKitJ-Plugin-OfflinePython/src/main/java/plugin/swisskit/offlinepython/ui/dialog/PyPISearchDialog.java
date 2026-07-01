@@ -14,7 +14,6 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -42,7 +41,7 @@ public class PyPISearchDialog {
     }
 
     private void buildUi() {
-        query.getStyleClass().add("glass-field");
+        query.getStyleClass().add("sk-field");
         query.setPromptText("输入包名，如 numpy");
         search.setOnAction(e -> doSearch());
         query.setOnAction(e -> doSearch());
@@ -54,7 +53,7 @@ public class PyPISearchDialog {
         TableColumn<WheelInfo, String> cSize = col("大小", w -> human(w.sizeBytes()));
         TableColumn<WheelInfo, String> cFn = col("文件名", WheelInfo::filename);
         table.getColumns().addAll(cVer, cPlat, cSize, cFn);
-        table.getStyleClass().add("glass-table");
+        table.getStyleClass().add("sk-table");
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         table.setPrefHeight(320);
         table.setPlaceholder(new Label("输入包名并搜索"));
@@ -69,9 +68,9 @@ public class PyPISearchDialog {
         HBox actions = new HBox(8, cancel, ok);
         VBox root = new VBox(10, bar, table, actions);
         root.setPadding(new Insets(16));
-        root.getStyleClass().add("glass-dialog");
+        root.getStyleClass().add("sk-dialog");
         Scene scene = new Scene(root, 600, 460);
-        scene.setFill(Color.rgb(20, 21, 25));
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
         Themes.applyTo(scene);
         stage.setScene(scene);
     }

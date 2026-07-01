@@ -14,16 +14,27 @@ import javafx.scene.layout.*;
 import javafx.util.Duration;
 import plugin.swisskit.keepawake.service.KeepAwakeService;
 
+/**
+ * KeepAwake control panel.
+ *
+ * <p>Themed exclusively with SwissKitJ {@code -sk-*} design tokens and {@code .sk-*}
+ * foundation classes so it blends in as a native host surface in both dark and light
+ * themes. No inline hex colors, no custom font family (the host's global font stack
+ * applies).
+ */
 public class KeepAwakeUi {
 
-    private static final String BG = "#1a1a2e";
-    private static final String CARD_BG = "#16213e";
-    private static final String ACCENT = "#e2b714";
-    private static final String ACCENT_GREEN = "#00e676";
-    private static final String ACCENT_RED = "#ff5252";
-    private static final String TEXT_DIM = "#8892b0";
-    private static final String TEXT_BRIGHT = "#ccd6f6";
-    private static final String DIVIDER = "#233554";
+    /** SwissKitJ design tokens (looked-up colors — resolve per-theme on the scene root). */
+    private static final String BG            = "-sk-bg";
+    private static final String CARD_BG       = "-sk-bg-elevated";
+    private static final String BORDER        = "-sk-border";
+    private static final String BORDER_STRONG = "-sk-border-strong";
+    private static final String TEXT          = "-sk-text";
+    private static final String TEXT_SEC      = "-sk-text-secondary";
+    private static final String TEXT_DIM      = "-sk-text-disabled";
+    private static final String ACCENT        = "-sk-accent";
+    private static final String SUCCESS       = "-sk-success";
+    private static final String DANGER        = "-sk-danger";
 
     private final KeepAwakeService service = KeepAwakeService.getInstance();
     private final VBox root = new VBox();
@@ -90,26 +101,24 @@ public class KeepAwakeUi {
 
         // Header
         Label header = new Label("✈  KEEP ALIVE BOARD");
-        header.setStyle("-fx-text-fill: " + ACCENT + "; -fx-font-size: 15px;"
-                + " -fx-font-weight: bold; -fx-font-family: 'Menlo', 'Consolas', monospace;");
+        header.getStyleClass().addAll("sk-accent-text");
+        header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
         header.setMaxWidth(Double.MAX_VALUE);
         header.setAlignment(Pos.CENTER);
         header.setPadding(new Insets(0, 0, 12, 0));
 
         // Status row
         BoardRow statusRow = new BoardRow("STATUS");
-        statusValue.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-weight: bold;");
         statusRow.setValueNode(statusValue);
 
         // Method row
         BoardRow methodRow = new BoardRow("METHOD");
-        methodValue.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace;");
         methodRow.setValueNode(methodValue);
 
         // Elapsed row
         BoardRow elapsedRow = new BoardRow("ELAPSED");
-        elapsedValue.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 18px;");
         elapsedRow.setValueNode(elapsedValue);
+        elapsedValue.setStyle("-fx-font-size: 18px; -fx-text-fill: " + TEXT + ";");
 
         // Dot indicator
         dotIndicator.setAlignment(Pos.CENTER_LEFT);
@@ -117,14 +126,15 @@ public class KeepAwakeUi {
 
         // Board body
         VBox board = new VBox();
-        board.setStyle("-fx-background-color: " + CARD_BG + "; -fx-background-radius: 6;");
+        board.setStyle("-fx-background-color: " + CARD_BG + "; -fx-background-radius: 8;"
+                + "-fx-border-color: " + BORDER + "; -fx-border-width: 1; -fx-border-radius: 8;");
         board.setPadding(new Insets(14, 16, 14, 16));
         board.setSpacing(2);
         board.getChildren().addAll(statusRow, divider(), methodRow, divider(), elapsedRow, dotIndicator);
 
-        // Buttons
-        styleButton(startButton, ACCENT, BG);
-        styleButton(stopButton, ACCENT_RED, "#fff");
+        // Buttons — one primary action, stop is secondary (destructive tone)
+        startButton.getStyleClass().add("sk-btn-primary");
+        stopButton.getStyleClass().add("sk-btn-secondary");
 
         I18n.bind(startButton.textProperty(), p + "start");
         I18n.bind(stopButton.textProperty(), p + "stop");
@@ -135,9 +145,8 @@ public class KeepAwakeUi {
 
         // Method toggle switch row
         Label toggleLabel = new Label();
-        toggleLabel.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
-                + " -fx-font-size: 11px; -fx-font-weight: bold;");
+        toggleLabel.getStyleClass().add("sk-t3");
+        toggleLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
         I18n.bind(toggleLabel.textProperty(), p + "toggleLabel");
 
         HBox toggleRow = new HBox(12, toggleLabel, methodToggle);
@@ -158,23 +167,9 @@ public class KeepAwakeUi {
         I18n.addListener(this::refreshDisplay);
     }
 
-    private void styleButton(Button btn, String bgColor, String textColor) {
-        btn.setStyle("-fx-background-color: " + bgColor + ";"
-                + " -fx-text-fill: " + textColor + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
-                + " -fx-font-size: 12px; -fx-font-weight: bold;"
-                + " -fx-background-radius: 4; -fx-padding: 7 24 7 24;"
-                + " -fx-cursor: hand;");
-        btn.setCursor(Cursor.HAND);
-        btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle().replace("-fx-background-color: " + bgColor,
-                "-fx-background-color: derive(" + bgColor + ", 20%)")));
-        btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle().replace("-fx-background-color: derive(" + bgColor + ", 20%)",
-                "-fx-background-color: " + bgColor)));
-    }
-
     private Node divider() {
         Region d = new Region();
-        d.setStyle("-fx-background-color: " + DIVIDER + ";");
+        d.setStyle("-fx-background-color: " + BORDER + ";");
         d.setPrefHeight(1);
         d.setPadding(new Insets(4, 0, 4, 0));
         VBox.setMargin(d, new Insets(6, 0, 6, 0));
@@ -214,8 +209,8 @@ public class KeepAwakeUi {
     private void toggleDot() {
         if (dotIndicator.getChildren().isEmpty()) return;
         Label dot = (Label) dotIndicator.getChildren().getFirst();
-        boolean on = dot.getStyle().contains(ACCENT_GREEN);
-        dot.setStyle("-fx-text-fill: " + (on ? CARD_BG : ACCENT_GREEN) + "; -fx-font-size: 10px;");
+        boolean on = dot.getStyle().contains(SUCCESS);
+        dot.setStyle("-fx-text-fill: " + (on ? CARD_BG : SUCCESS) + "; -fx-font-size: 10px;");
     }
 
     private void refreshDisplay() {
@@ -224,28 +219,29 @@ public class KeepAwakeUi {
 
         if (!service.isRunning()) {
             statusValue.setText(I18n.get(p + "stopped"));
-            statusValue.setStyle("-fx-text-fill: " + ACCENT_RED + ";"
-                    + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-weight: bold;");
+            statusValue.getStyleClass().setAll("sk-danger-text");
+            statusValue.setStyle("-fx-font-weight: bold;");
             methodValue.setText(I18n.get(p + "methodNone"));
-            methodValue.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
-                    + " -fx-font-family: 'Menlo', 'Consolas', monospace;");
+            methodValue.getStyleClass().setAll("sk-t2");
+            methodValue.setStyle("");
             elapsedValue.setText("00:00:00");
             return;
         }
 
         statusValue.setText(I18n.get(p + "running"));
-        statusValue.setStyle("-fx-text-fill: " + ACCENT_GREEN + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-weight: bold;");
+        statusValue.getStyleClass().setAll("sk-success-text");
+        statusValue.setStyle("-fx-font-weight: bold;");
 
         String methodKey = service.isSystemApi() ? p + "methodSystem" : p + "methodMouse";
         methodValue.setText(I18n.get(methodKey));
-        methodValue.setStyle("-fx-text-fill: " + TEXT_BRIGHT + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace;");
+        methodValue.getStyleClass().setAll("sk-t1");
+        methodValue.setStyle("");
 
         Label dot = new Label("●");
-        dot.setStyle("-fx-text-fill: " + ACCENT_GREEN + "; -fx-font-size: 10px;");
+        dot.setStyle("-fx-text-fill: " + SUCCESS + "; -fx-font-size: 10px;");
         Label dotLabel = new Label(" ACTIVE");
-        dotLabel.setStyle("-fx-text-fill: " + ACCENT_GREEN + "; -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 10px;");
+        dotLabel.getStyleClass().add("sk-success-text");
+        dotLabel.setStyle("-fx-font-size: 10px;");
         dotIndicator.getChildren().addAll(dot, dotLabel);
 
         updateElapsed();
@@ -278,9 +274,9 @@ public class KeepAwakeUi {
             // ── Track ──
             setPrefSize(TRACK_W, TRACK_H);
             setMaxSize(TRACK_W, TRACK_H);
-            setStyle("-fx-background-color: " + DIVIDER + ";"
+            setStyle("-fx-background-color: " + BORDER + ";"
                     + " -fx-background-radius: 999px;"
-                    + " -fx-border-color: derive(" + DIVIDER + ", -20%);"
+                    + " -fx-border-color: " + BORDER_STRONG + ";"
                     + " -fx-border-width: 0.5px;"
                     + " -fx-border-radius: 999px;"
                     + " -fx-padding: " + PAD + "px;"
@@ -291,7 +287,7 @@ public class KeepAwakeUi {
             pill.setMaxSize(PILL_W, PILL_H);
             pill.setStyle("-fx-background-color: " + CARD_BG + ";"
                     + " -fx-background-radius: 999px;"
-                    + " -fx-border-color: derive(" + TEXT_DIM + ", -40%);"
+                    + " -fx-border-color: " + BORDER_STRONG + ";"
                     + " -fx-border-width: 0.5px;"
                     + " -fx-border-radius: 999px;");
 
@@ -368,12 +364,8 @@ public class KeepAwakeUi {
             boolean systemApi = service.isUseSystemApi();
             boolean mouseActive = !systemApi;
 
-            String active = "-fx-font-family: 'Menlo', 'Consolas', monospace;"
-                    + " -fx-font-size: 13px; -fx-font-weight: 500;"
-                    + " -fx-text-fill: " + TEXT_BRIGHT + ";";
-            String inactive = "-fx-font-family: 'Menlo', 'Consolas', monospace;"
-                    + " -fx-font-size: 13px; -fx-font-weight: 400;"
-                    + " -fx-text-fill: " + TEXT_DIM + ";";
+            String active = "-fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: " + TEXT + ";";
+            String inactive = "-fx-font-size: 13px; -fx-font-weight: 400; -fx-text-fill: " + TEXT_SEC + ";";
 
             optMouse.setStyle(mouseActive ? active : inactive);
             optApi.setStyle(systemApi ? active : inactive);
@@ -391,13 +383,12 @@ public class KeepAwakeUi {
             setSpacing(0);
 
             Label keyLabel = new Label(key);
-            keyLabel.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
-                    + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
-                    + " -fx-font-size: 11px; -fx-font-weight: bold;");
+            keyLabel.getStyleClass().add("sk-t3");
+            keyLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
             keyLabel.setMinWidth(90);
 
             Label sep = new Label(" │ ");
-            sep.setStyle("-fx-text-fill: " + DIVIDER + "; -fx-font-family: monospace; -fx-font-size: 11px;");
+            sep.setStyle("-fx-text-fill: " + BORDER + "; -fx-font-size: 11px;");
 
             this.valueNode = new Label("—");
             getChildren().addAll(keyLabel, sep, this.valueNode);

@@ -19,12 +19,12 @@ public class HappyLearnPlugin implements SwissKitJPlugin {
 
     @Override
     public String getName() {
-        return "HappyLearn";
+        return I18n.get("plugin.hpl.name");
     }
 
     @Override
     public String getDescription() {
-        return "HappyLearn";
+        return I18n.get("plugin.hpl.desc");
     }
 
     @Override
@@ -34,7 +34,7 @@ public class HappyLearnPlugin implements SwissKitJPlugin {
 
     @Override
     public String getVersion() {
-        return "v1.1.2";
+        return "1.1.2";
     }
 
     @Override

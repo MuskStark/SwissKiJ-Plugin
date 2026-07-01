@@ -76,11 +76,11 @@ public class CommandShell {
     private Node buildTopBar() {
         topBar.setAlignment(Pos.CENTER_LEFT);
         topBar.setPadding(new javafx.geometry.Insets(9, 14, 9, 14));
-        topBar.setStyle("-fx-background-color: rgba(255,255,255,0.035); -fx-border-color: transparent transparent rgba(255,255,255,0.08) transparent;");
+        topBar.setStyle("-fx-background-color: " + OpbStyle.GLASS_BG_SOFT + "; -fx-border-color: transparent transparent " + OpbStyle.GLASS_BORDER + " transparent;");
 
-        projectLabel.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-border-color: rgba(255,255,255,0.12);"
+        projectLabel.setStyle("-fx-background-color: " + OpbStyle.GLASS_BG_HOVER + "; -fx-border-color: " + OpbStyle.GLASS_BORDER + ";"
                 + " -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 5 10 5 10;"
-                + " -fx-text-fill: rgba(255,255,255,0.85);");
+                + " -fx-text-fill: " + OpbStyle.TEXT_PRIMARY + ";");
         projectLabel.setText("项目: (未打开) ▾");
         projectLabel.setOnMouseClicked(e -> openExisting());
         Button newBtn = UiUtils.glassBtn("＋ 新建", false);
@@ -98,8 +98,8 @@ public class CommandShell {
         nav.setPrefWidth(OpbStyle.SIDEBAR_WIDTH);
         nav.setMinWidth(Region.USE_PREF_SIZE);
         nav.setPadding(new javafx.geometry.Insets(10, 8, 10, 8));
-        nav.setStyle("-fx-border-color: transparent rgba(255,255,255,0.08) transparent transparent;"
-                + " -fx-background-color: rgba(0,0,0,0.18);");
+        nav.setStyle("-fx-border-color: transparent " + OpbStyle.GLASS_BORDER + " transparent transparent;"
+                + " -fx-background-color: " + OpbStyle.GLASS_BG_SOFT + ";");
 
         addGroup(nav, "仓库操作", new String[]{"init","deps","build","update","verify","clean","pack","export"});
         addGroup(nav, "查看与工具", new String[]{"list","info","cache","doctor"});
@@ -133,7 +133,7 @@ public class CommandShell {
                 b.setStyle(OpbStyle.navItemDisabled());
                 b.setDisable(false);
                 Label tag = new Label(versionTag(key));
-                tag.setStyle("-fx-text-fill: rgba(255,255,255,0.25); -fx-font-size: 9px;");
+                tag.setStyle("-fx-text-fill: " + OpbStyle.TEXT_TERTIARY + "; -fx-font-size: 9px;");
                 b.setGraphic(tag);
             }
             navButtons.put(key, b);
@@ -154,24 +154,24 @@ public class CommandShell {
 
     private Node buildLogDock() {
         VBox dock = new VBox();
-        dock.setStyle("-fx-background-color: rgba(0,0,0,0.25); -fx-border-color: rgba(255,255,255,0.08) transparent transparent transparent;");
+        dock.setStyle("-fx-background-color: " + OpbStyle.LOG_INNER_BG + "; -fx-border-color: " + OpbStyle.GLASS_BORDER + " transparent transparent transparent;");
         HBar bar = new HBar(8);
         bar.setPadding(new javafx.geometry.Insets(6, 14, 6, 14));
         Label title = new Label("日志控制台 ▾");
-        title.setStyle("-fx-text-fill: rgba(255,255,255,0.85); -fx-cursor: hand;");
+        title.setStyle("-fx-text-fill: " + OpbStyle.TEXT_PRIMARY + "; -fx-cursor: hand;");
         title.setOnMouseClicked(e -> { boolean c = !logConsole.isCollapsed(); logConsole.setCollapsed(c); title.setText(c ? "日志控制台 ▸" : "日志控制台 ▾"); });
         Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
         bar.getChildren().addAll(title, sp);
         for (LogLevel lv : new LogLevel[]{LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR}) {
             Label pill = new Label(lv.name());
-            pill.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-text-fill: rgba(255,255,255,0.6);"
+            pill.setStyle("-fx-background-color: " + OpbStyle.GLASS_BG_HOVER + "; -fx-text-fill: " + OpbStyle.TEXT_SECONDARY + ";"
                     + " -fx-background-radius: 6; -fx-padding: 2 9;");
             pill.setUserData(Boolean.TRUE);
             pill.setOnMouseClicked(e -> {
                 boolean on = !(Boolean) pill.getUserData();
                 pill.setUserData(on);
-                pill.setStyle("-fx-background-color: " + (on ? "rgba(91,140,247,0.20)" : "rgba(255,255,255,0.06)")
-                        + "; -fx-text-fill: " + (on ? "#9cc0ff" : "rgba(255,255,255,0.5)")
+                pill.setStyle("-fx-background-color: " + (on ? OpbStyle.ACCENT_SOFT : OpbStyle.GLASS_BG_HOVER)
+                        + "; -fx-text-fill: " + (on ? OpbStyle.ACCENT : OpbStyle.TEXT_SECONDARY)
                         + "; -fx-background-radius: 6; -fx-padding: 2 9;");
                 rebuildVisibleLevels(bar);
             });

@@ -9,12 +9,14 @@ import static org.junit.jupiter.api.Assertions.*;
 class OpbStyleTest {
 
     @Test
-    void mirrorsHostAccentToken() {
-        assertEquals("#5b8cf7", OpbStyle.ACCENT);
-        assertEquals("rgba(255,255,255,0.055)", OpbStyle.GLASS_BG);
-        assertEquals("rgba(255,255,255,0.10)", OpbStyle.GLASS_BORDER);
-        assertEquals("#4cd97b", OpbStyle.SUCCESS);
-        assertEquals("#f25c5c", OpbStyle.DANGER);
+    void exposesHostAccentToken() {
+        // Colors are -sk-* looked-up color tokens (never inline hex/rgba), so they
+        // track the host theme. Assert the token strings, not frozen color values.
+        assertEquals("-sk-accent", OpbStyle.ACCENT);
+        assertEquals("-sk-bg-elevated", OpbStyle.GLASS_BG);
+        assertEquals("-sk-border", OpbStyle.GLASS_BORDER);
+        assertEquals("-sk-success", OpbStyle.SUCCESS);
+        assertEquals("-sk-danger", OpbStyle.DANGER);
     }
 
     @Test

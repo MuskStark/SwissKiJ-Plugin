@@ -38,7 +38,7 @@ public class VerifyPanel extends CommandPanel {
         ToggleButton integ = seg("仅完整性", VerifyScope.INTEGRITY, false);
         ToggleButton sha = seg("仅 SHA256", VerifyScope.SHA256, false);
         HBox segs = new HBox(0, all, integ, sha);
-        segs.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-background-radius: 8;");
+        segs.setStyle("-fx-background-color: " + OpbStyle.GLASS_BG_HOVER + "; -fx-background-radius: 8;");
         Button run = UiUtils.glassBtn("▶ 开始校验", true);
         HBox topbar = new HBox(8, segs);
         HBox spacerBox = new HBox(run);
@@ -55,7 +55,7 @@ public class VerifyPanel extends CommandPanel {
         b.setToggleGroup(scopeGroup);
         b.setUserData(scope);
         b.setSelected(selected);
-        b.setStyle("-fx-text-fill: rgba(255,255,255,0.8); -fx-background-radius: 8; -fx-cursor: hand;");
+        b.setStyle("-fx-text-fill: " + OpbStyle.TEXT_PRIMARY + "; -fx-background-radius: 8; -fx-cursor: hand;");
         return b;
     }
 
@@ -92,15 +92,15 @@ public class VerifyPanel extends CommandPanel {
         }
         if (fail) {
             conclusion.setText("⚠ 仓库存在问题");
-            conclusion.setStyle("-fx-background-color: rgba(242,92,92,0.14); -fx-text-fill: #f25c5c;"
+            conclusion.setStyle("-fx-background-color: " + OpbStyle.DANGER_SOFT + "; -fx-text-fill: " + OpbStyle.DANGER + ";"
                     + " -fx-background-radius: 10; -fx-padding: 10 14; -fx-font-weight: 500;");
         } else if (warn) {
             conclusion.setText("✓ 仓库可用（含警告）");
-            conclusion.setStyle("-fx-background-color: rgba(245,166,35,0.14); -fx-text-fill: #f5a623;"
+            conclusion.setStyle("-fx-background-color: " + OpbStyle.WARNING_SOFT + "; -fx-text-fill: " + OpbStyle.WARNING + ";"
                     + " -fx-background-radius: 10; -fx-padding: 10 14; -fx-font-weight: 500;");
         } else {
             conclusion.setText("✓ Repository OK");
-            conclusion.setStyle("-fx-background-color: rgba(76,217,123,0.14); -fx-text-fill: #4cd97b;"
+            conclusion.setStyle("-fx-background-color: " + OpbStyle.SUCCESS_SOFT + "; -fx-text-fill: " + OpbStyle.SUCCESS + ";"
                     + " -fx-background-radius: 10; -fx-padding: 10 14; -fx-font-weight: 500;");
         }
     }
@@ -117,9 +117,9 @@ public class VerifyPanel extends CommandPanel {
 
     private String soft(Status s) {
         return switch (s) {
-            case PASS -> "rgba(76,217,123,0.18)";
-            case WARN -> "rgba(245,166,35,0.18)";
-            case FAIL -> "rgba(242,92,92,0.18)";
+            case PASS -> OpbStyle.SUCCESS_SOFT;
+            case WARN -> OpbStyle.WARNING_SOFT;
+            case FAIL -> OpbStyle.DANGER_SOFT;
         };
     }
 

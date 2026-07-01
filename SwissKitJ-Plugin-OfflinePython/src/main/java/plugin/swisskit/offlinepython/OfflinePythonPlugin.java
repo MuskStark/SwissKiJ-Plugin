@@ -12,8 +12,8 @@ public class OfflinePythonPlugin implements SwissKitJPlugin {
     private CommandShell shell;
 
     @Override public String getId()          { return "plugin.swisskit.offlinepython"; }
-    @Override public String getName()        { return "Offline Python Builder"; }
-    @Override public String getDescription() { return "Build offline Python install repositories with all dependencies"; }
+    @Override public String getName()        { return I18n.get("opb.name"); }
+    @Override public String getDescription() { return I18n.get("opb.desc"); }
     @Override public ToolCategory getCategory() { return ToolCategory.DEV; }
     @Override public String getVersion()     { return "1.0.0"; }
     @Override public String getMdiIcon()     { return "language-python"; }

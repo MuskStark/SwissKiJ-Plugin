@@ -3,37 +3,48 @@ package plugin.swisskit.offlinepython.ui;
 import plugin.swisskit.offlinepython.domain.Status;
 
 /**
- * Centralized SwissKitJ host "glass" design tokens and small style helpers for the
- * OfflinePython plugin. Token values mirror swisskit-common.css and
- * fan.summer.api.component.UiUtils so the plugin reads as part of the host shell.
- * Concrete values are used (not JavaFX looked-up color variables) because the plugin
- * root may not carry the .root style class.
+ * Centralized SwissKitJ host design tokens and small style helpers for the
+ * OfflinePython plugin.
+ *
+ * <p>All colors are <strong>{@code -sk-*} looked-up color tokens</strong> (resolved
+ * per-theme against {@code .theme-dark}/.theme-light} on the scene root) — never
+ * inline hex or {@code rgba()} literals, which would freeze on one theme. The
+ * plugin's view is embedded in the host scene (and the common stylesheet is
+ * explicitly added in {@code CommandShell}), so the tokens resolve correctly.
+ *
+ * <p>Token values mirror {@code swisskit-common.css} and
+ * {@code fan.summer.api.component.UiUtils} so the plugin reads as part of the host
+ * shell.
  */
 public final class OpbStyle {
 
     private OpbStyle() {}
 
-    // Host glass tokens (mirror swisskit-common.css)
-    public static final String ACCENT          = "#5b8cf7";
-    public static final String ACCENT_SOFT     = "rgba(91,140,247,0.18)";
-    public static final String GLASS_BG        = "rgba(255,255,255,0.055)";
-    public static final String GLASS_BG_HOVER  = "rgba(255,255,255,0.09)";
-    public static final String GLASS_BORDER    = "rgba(255,255,255,0.10)";
-    public static final String TEXT_PRIMARY    = "rgba(255,255,255,0.92)";
-    public static final String TEXT_SECONDARY  = "rgba(255,255,255,0.50)";
-    public static final String TEXT_TERTIARY   = "rgba(255,255,255,0.40)";
-    public static final String SUCCESS         = "#4cd97b";
-    public static final String SUCCESS_SOFT    = "rgba(76,217,123,0.16)";
-    public static final String WARNING         = "#f5a623";
-    public static final String DANGER          = "#f25c5c";
-    public static final String DANGER_SOFT     = "rgba(242,92,92,0.16)";
-    public static final String LOG_INNER_BG    = "rgba(0,0,0,0.25)";
+    // Host glass tokens — -sk-* looked-up colors (resolve per-theme on the scene root)
+    public static final String ACCENT          = "-sk-accent";
+    public static final String ACCENT_SOFT     = "-sk-accent-soft";
+    public static final String GLASS_BG        = "-sk-bg-elevated";
+    public static final String GLASS_BG_HOVER  = "-sk-bg-hover";
+    public static final String GLASS_BG_SOFT   = "-sk-bg";
+    public static final String GLASS_BORDER    = "-sk-border";
+    public static final String BORDER_STRONG   = "-sk-border-strong";
+    public static final String TEXT_PRIMARY    = "-sk-text";
+    public static final String TEXT_SECONDARY  = "-sk-text-secondary";
+    public static final String TEXT_TERTIARY   = "-sk-text-disabled";
+    public static final String SUCCESS         = "-sk-success";
+    public static final String SUCCESS_SOFT    = "-sk-success-soft";
+    public static final String WARNING         = "-sk-warning";
+    public static final String WARNING_SOFT    = "-sk-warning-soft";
+    public static final String DANGER          = "-sk-danger";
+    public static final String DANGER_SOFT     = "-sk-danger-soft";
+    public static final String BG_SELECTED     = "-sk-bg-selected";
+    public static final String LOG_INNER_BG    = "-sk-bg";
 
     public static final int CARD_RADIUS   = 12;
     public static final int NAV_RADIUS    = 8;
     public static final int SIDEBAR_WIDTH = 220;
 
-    /** Glass card surface: translucent fill + hairline border + 12px radius. */
+    /** Glass card surface: elevated fill + hairline border + 12px radius. */
     public static String card() {
         return "-fx-background-color: " + GLASS_BG + ";"
              + "-fx-background-radius: " + CARD_RADIUS + ";"

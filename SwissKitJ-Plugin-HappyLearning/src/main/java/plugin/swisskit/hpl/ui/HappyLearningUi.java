@@ -10,7 +10,6 @@ import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -28,19 +27,28 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
+/**
+ * HappyLearning control panel.
+ *
+ * <p>Themed exclusively with SwissKitJ {@code -sk-*} design tokens and {@code .sk-*}
+ * foundation classes so it reads as a native host surface in both dark and light
+ * themes. No inline hex, no custom font family (host's global font stack applies).
+ */
 public class HappyLearningUi {
 
     private static final PluginLogger log = LoggerFactory.getLogger(HappyLearningUi.class);
 
-    private static final String BG = "#1a1a2e";
-    private static final String CARD_BG = "#16213e";
-    private static final String ACCENT = "#e2b714";
-    private static final String ACCENT_GREEN = "#00e676";
-    private static final String ACCENT_RED = "#ff5252";
-    private static final String ACCENT_BLUE = "#42a5f5";
-    private static final String TEXT_DIM = "#8892b0";
-    private static final String TEXT_BRIGHT = "#ccd6f6";
-    private static final String DIVIDER = "#233554";
+    /** SwissKitJ design tokens (looked-up colors — resolve per-theme on the scene root). */
+    private static final String BG       = "-sk-bg";
+    private static final String CARD_BG  = "-sk-bg-elevated";
+    private static final String BORDER   = "-sk-border";
+    private static final String TEXT     = "-sk-text";
+    private static final String TEXT_SEC = "-sk-text-secondary";
+    private static final String TEXT_DIM = "-sk-text-disabled";
+    private static final String ACCENT   = "-sk-accent";
+    private static final String SUCCESS  = "-sk-success";
+    private static final String WARNING  = "-sk-warning";
+    private static final String DANGER   = "-sk-danger";
 
     private final HappyLearningService service = HappyLearningService.getInstance();
     private final VBox root = new VBox();
@@ -112,24 +120,24 @@ public class HappyLearningUi {
 
         // ── Header ──
         Label header = new Label("✈  HAPPY LEARNING BOARD");
-        header.setStyle("-fx-text-fill: " + ACCENT + "; -fx-font-size: 14px;"
-                + " -fx-font-weight: bold; -fx-font-family: 'Menlo', 'Consolas', monospace;");
+        header.getStyleClass().add("sk-accent-text");
+        header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
         header.setMaxWidth(Double.MAX_VALUE);
         header.setAlignment(Pos.CENTER);
-        header.setPadding(new Insets(0, 0, 10, 0));
+        header.setPadding(new Insets(0, 0, 12, 0));
 
         // ── Config Section ──
         configFilePathField.setEditable(false);
-        styleTextField(configFilePathField);
-        styleSmallButton(uploadButton, ACCENT);
+        configFilePathField.getStyleClass().add("sk-field");
+        uploadButton.getStyleClass().add("sk-btn-secondary");
         I18n.bind(uploadButton.textProperty(), p + "uploadConfig");
 
         BoardRow configRow = new BoardRow("CONFIG");
         configRow.setValueNode(configFilePathField, uploadButton);
 
         // ── PassKey Section ──
-        styleTextField(passKeyField);
-        styleSmallButton(setPassKeyButton, ACCENT);
+        passKeyField.getStyleClass().add("sk-field");
+        setPassKeyButton.getStyleClass().add("sk-btn-secondary");
         I18n.bind(setPassKeyButton.textProperty(), p + "setPassKey");
 
         BoardRow passKeyRow = new BoardRow("PASSKEY");
@@ -155,13 +163,12 @@ public class HappyLearningUi {
         );
 
         // ── Status + Dot Indicator ──
-        statusLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;");
         dotIndicator.setAlignment(Pos.CENTER_LEFT);
         dotIndicator.setPadding(new Insets(4, 0, 0, 0));
 
         // ── Controls ──
-        styleCheckBox(onlyMajorCheckBox);
-        styleCheckBox(onlyElectiveCheckBox);
+        onlyMajorCheckBox.getStyleClass().add("sk-checkbox");
+        onlyElectiveCheckBox.getStyleClass().add("sk-checkbox");
         I18n.bind(onlyMajorCheckBox.textProperty(), p + "onlyMajorSubject");
         I18n.bind(onlyElectiveCheckBox.textProperty(), p + "onlyElectiveSubject");
 
@@ -172,9 +179,9 @@ public class HappyLearningUi {
             if (newVal) onlyMajorCheckBox.setSelected(false);
         });
 
-        styleButton(startButton, ACCENT, BG);
-        styleButton(stopButton, ACCENT_RED, "#fff");
-        styleButton(skipButton, TEXT_DIM, BG);
+        startButton.getStyleClass().add("sk-btn-primary");   // the single primary action
+        stopButton.getStyleClass().add("sk-btn-secondary");
+        skipButton.getStyleClass().add("sk-btn-secondary");
         I18n.bind(startButton.textProperty(), p + "startHappy");
         I18n.bind(stopButton.textProperty(), p + "unHappy");
         I18n.bind(skipButton.textProperty(), p + "skipClass");
@@ -191,7 +198,8 @@ public class HappyLearningUi {
 
         // ── Assemble board card ──
         VBox board = new VBox();
-        board.setStyle("-fx-background-color: " + CARD_BG + "; -fx-background-radius: 6;");
+        board.setStyle("-fx-background-color: " + CARD_BG + "; -fx-background-radius: 8;"
+                + "-fx-border-color: " + BORDER + "; -fx-border-width: 1; -fx-border-radius: 8;");
         board.setPadding(new Insets(12, 14, 12, 14));
         board.setSpacing(2);
         board.getChildren().addAll(
@@ -231,35 +239,31 @@ public class HappyLearningUi {
         row.setPadding(new Insets(4, 0, 4, 0));
 
         Label keyLabel = new Label(key);
-        keyLabel.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
-                + " -fx-font-size: 11px; -fx-font-weight: bold;");
+        keyLabel.getStyleClass().add("sk-t3");
+        keyLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
         keyLabel.setMinWidth(85);
 
         Label sep = new Label(" │ ");
-        sep.setStyle("-fx-text-fill: " + DIVIDER + "; -fx-font-family: monospace; -fx-font-size: 11px;");
+        sep.setStyle("-fx-text-fill: " + BORDER + "; -fx-font-size: 11px;");
 
-        bar.setPrefHeight(12);
+        bar.setPrefHeight(6);
         bar.setMaxWidth(Double.MAX_VALUE);
-        bar.setStyle("-fx-accent: " + ACCENT_BLUE + ";");
+        bar.setStyle("-fx-accent: " + ACCENT + ";");
         HBox.setHgrow(bar, Priority.ALWAYS);
 
-        percentLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace;"
-                + " -fx-font-size: 10px; -fx-font-weight: bold;"
-                + " -fx-text-fill: " + ACCENT + ";");
-        percentLabel.setMinWidth(36);
+        percentLabel.getStyleClass().add("sk-t2");
+        percentLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
+        percentLabel.setMinWidth(40);
         percentLabel.setAlignment(Pos.CENTER_RIGHT);
 
-        detailLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace;"
-                + " -fx-font-size: 10px; -fx-text-fill: " + TEXT_DIM + ";");
+        detailLabel.getStyleClass().add("sk-t2");
+        detailLabel.setStyle("-fx-font-size: 11px;");
         detailLabel.setMinWidth(65);
 
-        StackPane barOverlay = new StackPane(bar, percentLabel);
-        percentLabel.setStyle("-fx-font-size: 10px; -fx-font-weight: bold;"
-                + " -fx-text-fill: white; -fx-effect: dropshadow(gaussian, black, 1, 0.8, 0, 0);");
-        HBox.setHgrow(barOverlay, Priority.ALWAYS);
+        HBox barRow = new HBox(8, bar, percentLabel);
+        HBox.setHgrow(barRow, Priority.ALWAYS);
 
-        row.getChildren().addAll(keyLabel, sep, barOverlay, new Label(" "), detailLabel);
+        row.getChildren().addAll(keyLabel, sep, barRow, new Label(" "), detailLabel);
         return row;
     }
 
@@ -269,16 +273,15 @@ public class HappyLearningUi {
         row.setPadding(new Insets(3, 0, 3, 0));
 
         Label keyLabel = new Label(key);
-        keyLabel.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
-                + " -fx-font-size: 11px; -fx-font-weight: bold;");
+        keyLabel.getStyleClass().add("sk-t3");
+        keyLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
         keyLabel.setMinWidth(85);
 
         Label sep = new Label(" │ ");
-        sep.setStyle("-fx-text-fill: " + DIVIDER + "; -fx-font-family: monospace; -fx-font-size: 11px;");
+        sep.setStyle("-fx-text-fill: " + BORDER + "; -fx-font-size: 11px;");
 
-        value.setStyle("-fx-text-fill: " + TEXT_BRIGHT + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 12px;");
+        value.getStyleClass().add("sk-t1");
+        value.setStyle("-fx-font-size: 12px;");
         HBox.setHgrow(value, Priority.ALWAYS);
 
         row.getChildren().addAll(keyLabel, sep, value);
@@ -287,40 +290,10 @@ public class HappyLearningUi {
 
     private Node divider() {
         Region d = new Region();
-        d.setStyle("-fx-background-color: " + DIVIDER + ";");
+        d.setStyle("-fx-background-color: " + BORDER + ";");
         d.setPrefHeight(1);
         VBox.setMargin(d, new Insets(4, 0, 4, 0));
         return d;
-    }
-
-    // ==================== Style Helpers ====================
-
-    private void styleTextField(TextField field) {
-        field.setStyle("-fx-background-color: #0f3460; -fx-text-fill: " + TEXT_BRIGHT + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
-                + " -fx-background-radius: 3; -fx-padding: 4 8 4 8;"
-                + " -fx-border-color: " + DIVIDER + "; -fx-border-radius: 3;");
-    }
-
-    private void styleSmallButton(Button btn, String color) {
-        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: " + BG + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 10px;"
-                + " -fx-font-weight: bold; -fx-background-radius: 3; -fx-padding: 4 12 4 12;");
-        btn.setCursor(Cursor.HAND);
-    }
-
-    private void styleButton(Button btn, String bgColor, String textColor) {
-        btn.setStyle("-fx-background-color: " + bgColor + ";"
-                + " -fx-text-fill: " + textColor + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
-                + " -fx-font-size: 11px; -fx-font-weight: bold;"
-                + " -fx-background-radius: 4; -fx-padding: 6 20 6 20;");
-        btn.setCursor(Cursor.HAND);
-    }
-
-    private void styleCheckBox(CheckBox cb) {
-        cb.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
-                + " -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 10px;");
     }
 
     // ==================== State Sync ====================
@@ -347,8 +320,8 @@ public class HappyLearningUi {
     private void refreshStatusLabel() {
         String statusText = I18n.get("plugin.hpl.learningStatus") + ": " + I18n.get(service.getCurrentStatusKey());
         statusLabel.setText(statusText);
-        statusLabel.setStyle("-fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 11px;"
-                + " -fx-text-fill: " + (service.isRunning() ? ACCENT_GREEN : TEXT_DIM) + ";");
+        statusLabel.getStyleClass().setAll(service.isRunning() ? "sk-success-text" : "sk-t2");
+        statusLabel.setStyle("-fx-font-size: 11px;");
     }
 
     private void refreshDotIndicator() {
@@ -356,9 +329,10 @@ public class HappyLearningUi {
         if (!service.isRunning()) return;
 
         Label dot = new Label("●");
-        dot.setStyle("-fx-text-fill: " + ACCENT_GREEN + "; -fx-font-size: 10px;");
+        dot.setStyle("-fx-text-fill: " + SUCCESS + "; -fx-font-size: 10px;");
         Label label = new Label(" IN FLIGHT");
-        label.setStyle("-fx-text-fill: " + ACCENT_GREEN + "; -fx-font-family: 'Menlo', 'Consolas', monospace; -fx-font-size: 10px;");
+        label.getStyleClass().add("sk-success-text");
+        label.setStyle("-fx-font-size: 10px;");
         dotIndicator.getChildren().addAll(dot, label);
     }
 
@@ -517,8 +491,8 @@ public class HappyLearningUi {
     private void toggleDot() {
         if (dotIndicator.getChildren().isEmpty()) return;
         Label dot = (Label) dotIndicator.getChildren().getFirst();
-        boolean on = dot.getStyle().contains(ACCENT_GREEN);
-        dot.setStyle("-fx-text-fill: " + (on ? CARD_BG : ACCENT_GREEN) + "; -fx-font-size: 10px;");
+        boolean on = dot.getStyle().contains(SUCCESS);
+        dot.setStyle("-fx-text-fill: " + (on ? CARD_BG : SUCCESS) + "; -fx-font-size: 10px;");
     }
 
     private void pollProgress() {
@@ -573,11 +547,15 @@ public class HappyLearningUi {
         electiveProgressBar.setStyle("-fx-accent: " + progressColor(electivePct) + ";");
     }
 
+    /**
+     * Progress-bar fill color, driven by host semantic tokens so it tracks the theme.
+     * complete → success, mid → accent, low → text-secondary.
+     */
     private String progressColor(double pct) {
-        if (pct >= 1.0) return "#4caf50";
-        if (pct >= 0.7) return "#66bb6a";
-        if (pct >= 0.3) return ACCENT_BLUE;
-        return "#5c6bc0";
+        if (pct >= 1.0) return SUCCESS;
+        if (pct >= 0.7) return SUCCESS;
+        if (pct >= 0.3) return ACCENT;
+        return TEXT_SEC;
     }
 
     // ==================== Helpers ====================
@@ -605,13 +583,12 @@ public class HappyLearningUi {
             setSpacing(6);
 
             Label keyLabel = new Label(key);
-            keyLabel.setStyle("-fx-text-fill: " + TEXT_DIM + ";"
-                    + " -fx-font-family: 'Menlo', 'Consolas', monospace;"
-                    + " -fx-font-size: 11px; -fx-font-weight: bold;");
+            keyLabel.getStyleClass().add("sk-t3");
+            keyLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
             keyLabel.setMinWidth(85);
 
             Label sep = new Label(" │ ");
-            sep.setStyle("-fx-text-fill: " + DIVIDER + "; -fx-font-family: monospace; -fx-font-size: 11px;");
+            sep.setStyle("-fx-text-fill: " + BORDER + "; -fx-font-size: 11px;");
 
             getChildren().addAll(keyLabel, sep);
         }
