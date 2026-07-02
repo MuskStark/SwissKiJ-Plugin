@@ -21,6 +21,7 @@ import plugin.swisskit.offlinepython.infra.PythonDetector;
 import plugin.swisskit.offlinepython.ui.control.ProjectSwitcher;
 import plugin.swisskit.offlinepython.ui.panel.BuildVerifyPanel;
 import plugin.swisskit.offlinepython.ui.panel.ConfigPanel;
+import plugin.swisskit.offlinepython.ui.panel.DeployPanel;
 import plugin.swisskit.offlinepython.ui.panel.DoctorPanel;
 
 import java.io.File;
@@ -51,6 +52,7 @@ public class CommandShell {
     private String current = "config";
     private ConfigPanel configPanel;
     private BuildVerifyPanel buildVerifyPanel;
+    private DeployPanel deployPanel;
 
     public CommandShell() {
         root.getStylesheets().add(Themes.commonStylesheetUrl());
@@ -58,6 +60,7 @@ public class CommandShell {
         navLabels.put("config",   I18n.get("opb.nav.config"));
         navLabels.put("build",    I18n.get("opb.nav.build"));
         navLabels.put("doctor",   I18n.get("opb.nav.doctor"));
+        navLabels.put("deploy",   I18n.get("opb.nav.deploy"));
 
         root.setTop(buildTopBar());
         root.setLeft(buildNav());
@@ -89,6 +92,7 @@ public class CommandShell {
                 + " -fx-border-width: 0 1 0 0;");
         navEntry(nav, "config",  "package-variant-closed", true);
         navEntry(nav, "build",   "hammer-wrench", false);
+        navEntry(nav, "deploy",  "download", false);
         navEntry(nav, "doctor",  "stethoscope", false);
         return nav;
     }
@@ -151,6 +155,10 @@ public class CommandShell {
                 if (buildVerifyPanel == null) buildVerifyPanel = new BuildVerifyPanel(logger, project);
                 buildVerifyPanel.onShow();  // 每次进入都刷新依赖数/配置(可能刚在 config 页保存)
                 yield buildVerifyPanel;
+            }
+            case "deploy"  -> {
+                if (deployPanel == null) deployPanel = new DeployPanel(logger);
+                yield deployPanel;
             }
             case "doctor"  -> new DoctorPanel(logger, project);
             default -> new Label("—");
