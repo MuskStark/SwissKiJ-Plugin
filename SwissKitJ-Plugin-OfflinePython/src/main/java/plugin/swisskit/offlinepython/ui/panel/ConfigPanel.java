@@ -132,10 +132,10 @@ public class ConfigPanel extends CommandPanel {
         addBtn.setOnAction(e -> doSave());
         header.addActions(back, search, addBtn);
 
-        // --- 行2：包名 / 版本 / 目标平台（per-dep） ---
+        // --- 行2：包名 / 版本 / 目标平台（per-dep,用 promptText 代替标签） ---
         nField.setStyle(UiUtils.fieldStyle()); nField.setPromptText("包名");
         vField.setStyle(UiUtils.fieldStyle()); vField.setPromptText("版本 (如 ==1.26.4)");
-        HBox row2 = new HBox(8, labeled("包名", nField), labeled("版本", vField), platformBox());
+        HBox row2 = new HBox(8, nField, vField, platformSelect);
         HBox.setHgrow(nField, Priority.ALWAYS);
 
         // --- 表格列 ---
@@ -145,8 +145,10 @@ public class ConfigPanel extends CommandPanel {
         TableColumn<Row, String> cSize = textCol("预估大小", 0.9, r -> r.size.get());
         TableColumn<Row, Row> cDel = new TableColumn<>("");
         cDel.setCellFactory(tc -> new TableCell<>() {
-            private final Button del = UiUtils.glassBtn("✕", false);
-            { del.setTooltip(new Tooltip("删除该行"));
+            private final Button del = new Button("✕");
+            { del.setStyle("-fx-background-color: " + OpbStyle.DANGER_SOFT + "; -fx-text-fill: " + OpbStyle.DANGER
+                    + "; -fx-background-radius: 6; -fx-border-width: 0; -fx-padding: 2 8 2 8; -fx-font-size: 11px; -fx-cursor: hand;");
+              del.setTooltip(new Tooltip("删除该行"));
               del.setOnAction(e -> { table.getItems().remove(getIndex()); refreshSummary(); }); }
             @Override protected void updateItem(Row r, boolean empty) {
                 super.updateItem(r, empty); setGraphic(empty ? null : del);
@@ -220,14 +222,6 @@ public class ConfigPanel extends CommandPanel {
             }
         });
         return c;
-    }
-
-    private HBox labeled(String text, TextField f) {
-        HBox h = new HBox(6, UiUtils.subLabel(text), f); HBox.setHgrow(f, Priority.ALWAYS); return h;
-    }
-
-    private HBox platformBox() {
-        return new HBox(6, UiUtils.subLabel("目标平台"), platformSelect);
     }
 
     /** 载入行到表单（编辑态）；null → 重置为新增态。 */
