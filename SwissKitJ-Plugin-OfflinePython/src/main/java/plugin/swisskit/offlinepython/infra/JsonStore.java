@@ -19,6 +19,11 @@ public final class JsonStore {
         return GSON_PLAIN.fromJson(json, type);
     }
 
+    /** Serialize an object to JSON (plain, UTF-8 string). */
+    public static String toJson(Object obj) {
+        return GSON_PLAIN.toJson(obj);
+    }
+
     public static <T> T load(Path file, Class<T> type) throws IOException {
         return GSON.fromJson(Files.readString(file), type);
     }
