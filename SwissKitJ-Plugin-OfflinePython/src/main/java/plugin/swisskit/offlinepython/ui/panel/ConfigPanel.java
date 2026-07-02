@@ -22,6 +22,7 @@ import plugin.swisskit.offlinepython.domain.RequirementsFile;
 import plugin.swisskit.offlinepython.ui.LogConsole;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 import plugin.swisskit.offlinepython.ui.ProjectContext;
+import plugin.swisskit.offlinepython.ui.control.EmptyState;
 import plugin.swisskit.offlinepython.ui.control.PanelHeader;
 import plugin.swisskit.offlinepython.ui.control.PlatformMultiSelect;
 import plugin.swisskit.offlinepython.ui.dialog.PyPISearchDialog;
@@ -65,12 +66,34 @@ public class ConfigPanel extends CommandPanel {
     private final TextField vField = new TextField();
     private final PlatformMultiSelect platformSelect = new PlatformMultiSelect();
     private long pendingSize = 0L; // 在线搜索带回的 wheel 大小，提交时写入行
+    private final Runnable onOpen;
+    /** 表单+表格+选项+摘要的容器(有项目时显示,无项目时隐藏)。 */
+    private final VBox contentBox = new VBox();
+    /** 空状态容器(无项目时显示,有项目时隐藏)。 */
+    private final VBox emptyHolder = new VBox();
 
-    public ConfigPanel(LogConsole log, ProjectContext project) {
+    public ConfigPanel(LogConsole log, ProjectContext project, Runnable onOpen) {
         super(log, project);
+        this.onOpen = onOpen;
         recursive.setSelected(true); wheelFirst.setSelected(true);
         buildUi();
-        loadFromProject();
+        reload();
+    }
+
+    /** 重新加载:无项目显示空状态,有项目加载依赖表。供 CommandShell 打开项目后调用。 */
+    public void reload() {
+        boolean hasProject = project.getProjectDir() != null;
+        contentBox.setManaged(hasProject); contentBox.setVisible(hasProject);
+        emptyHolder.setManaged(!hasProject); emptyHolder.setVisible(!hasProject);
+        if (hasProject) {
+            loadFromProject();
+        } else if (emptyHolder.getChildren().isEmpty()) {
+            EmptyState empty = new EmptyState("folder-off-outline", I18n.get("opb.project.empty"));
+            Button openBtn = UiUtils.glassBtn(I18n.get("opb.project.open"), true);
+            openBtn.setOnAction(e -> { if (onOpen != null) onOpen.run(); });
+            empty.setActions(new HBox(8, openBtn));
+            emptyHolder.getChildren().setAll(empty);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -126,7 +149,10 @@ public class ConfigPanel extends CommandPanel {
         HBox.setHgrow(summaryBar, Priority.ALWAYS);
 
         VBox tableBox = new VBox(6, table);
-        getChildren().addAll(row2, tableBox, opts, summaryBar);
+        contentBox.setSpacing(8);
+        contentBox.getChildren().addAll(row2, tableBox, opts, summaryBar);
+        // header + contentBox(有项目) + emptyHolder(无项目);reload() 切换可见性
+        getChildren().addAll(contentBox, emptyHolder);
     }
 
     private TableColumn<Row, String> textCol(String title, double widthFactor,
@@ -159,7 +185,7 @@ public class ConfigPanel extends CommandPanel {
                 HBox icons = new HBox(3);
                 String firstArch = null; boolean mixedArch = false; boolean anyArch = false;
                 for (String p : plats) {
-                    var ic = MdiIconUtil.createIcon(PlatformCatalog.iconOf(p), 14, OpbStyle.TEXT_PRIMARY);
+                    var ic = MdiIconUtil.createIcon(PlatformCatalog.iconOf(p), 14, "-fx-fill: " + OpbStyle.TEXT_PRIMARY + ";");
                     Tooltip.install(ic, new Tooltip(PlatformCatalog.labelOf(p)));
                     icons.getChildren().add(ic);
                     String ab = PlatformCatalog.archBitsLabel(p);

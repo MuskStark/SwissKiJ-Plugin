@@ -1,30 +1,27 @@
 package plugin.swisskit.offlinepython.ui.control;
 
 import fan.summer.api.MdiIconUtil;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 
 /**
- * 顶栏项目切换器:MenuButton,菜单含「新建…」「打开…」。
- * 显示当前项目名 + ▾。未打开时显示占位。
+ * 顶栏项目名显示:只读 Label(folder 图标 + 项目名)。
+ * 不再支持新建/打开 —— 打开项目由 ConfigPanel 空状态负责。
  */
-public class ProjectSwitcher extends MenuButton {
-    private final MenuItem newItem = new MenuItem("＋ 新建项目…");
-    private final MenuItem openItem = new MenuItem("📂 打开项目…");
+public class ProjectSwitcher extends HBox {
+    private final Label nameLabel = new Label();
 
-    public ProjectSwitcher(Runnable onNew, Runnable onOpen) {
-        super("(未打开项目)");
-        newItem.setOnAction(e -> onNew.run());
-        openItem.setOnAction(e -> onOpen.run());
-        getItems().addAll(newItem, openItem);
-        setStyle(OpbStyle.projectSwitcher());
-        setGraphic(MdiIconUtil.createIcon("folder", 14, "-fx-fill: " + OpbStyle.TEXT_PRIMARY + ";"));
-        // MenuButton 默认 graphic/text 同显;graphic 放左,text 是项目名
-        setMnemonicParsing(false);
+    public ProjectSwitcher() {
+        super(8);
+        setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        var icon = MdiIconUtil.createIcon("folder-outline", 14, "-fx-fill: " + OpbStyle.TEXT_PRIMARY + ";");
+        nameLabel.setStyle("-fx-text-fill: " + OpbStyle.TEXT_PRIMARY + "; -fx-font-size: 13px;");
+        getChildren().addAll(icon, nameLabel);
     }
 
+    /** 更新显示的项目名;null/空时显示占位。 */
     public void updateName(String name) {
-        setText(name + " ▾");
+        nameLabel.setText(name == null || name.isBlank() ? "(未打开项目)" : name);
     }
 }

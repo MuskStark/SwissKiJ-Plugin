@@ -35,7 +35,7 @@ public class PlatformMultiSelect extends MenuButton {
         HBox icons = new HBox(2);
         String first = null; boolean mixed = false; boolean anyArch = false;
         for (String tag : selected) {
-            icons.getChildren().add(MdiIconUtil.createIcon(PlatformCatalog.iconOf(tag), 13, OpbStyle.TEXT_PRIMARY));
+            icons.getChildren().add(MdiIconUtil.createIcon(PlatformCatalog.iconOf(tag), 13, "-fx-fill: " + OpbStyle.TEXT_PRIMARY + ";"));
             String ab = PlatformCatalog.archBitsLabel(tag);
             if (!ab.isEmpty()) { anyArch = true; if (first == null) first = ab; else if (!first.equals(ab)) mixed = true; }
         }
@@ -48,7 +48,7 @@ public class PlatformMultiSelect extends MenuButton {
         for (PlatformCatalog.Entry e : PlatformCatalog.ALL) {
             String ab = PlatformCatalog.archBitsLabel(e.tag());
             CheckMenuItem mi = new CheckMenuItem(ab.isEmpty() ? "通用（纯 Python）" : ab);
-            mi.setGraphic(MdiIconUtil.createIcon(PlatformCatalog.iconOf(e.tag()), 14, OpbStyle.TEXT_PRIMARY));
+            mi.setGraphic(MdiIconUtil.createIcon(PlatformCatalog.iconOf(e.tag()), 14, "-fx-fill: " + OpbStyle.TEXT_PRIMARY + ";"));
             mi.setSelected(selected.contains(e.tag()));
             mi.selectedProperty().addListener((o, ov, nv) -> {
                 if (updating) return;

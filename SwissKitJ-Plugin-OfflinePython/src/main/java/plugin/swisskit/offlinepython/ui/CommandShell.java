@@ -22,7 +22,6 @@ import plugin.swisskit.offlinepython.ui.control.ProjectSwitcher;
 import plugin.swisskit.offlinepython.ui.panel.BuildVerifyPanel;
 import plugin.swisskit.offlinepython.ui.panel.ConfigPanel;
 import plugin.swisskit.offlinepython.ui.panel.DoctorPanel;
-import plugin.swisskit.offlinepython.ui.panel.ProjectPanel;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -31,12 +30,10 @@ import java.util.Map;
 
 /**
  * OfflinePython command shell: a 4-region layout (top bar / left nav / center
- * content / right log drawer) with a 4-item nav (project / config / build / doctor).
+ * content / right log drawer) with a 3-item nav (config / build / doctor).
  *
- * <p>This view is embedded in the host shell and consumes the controls built in
- * earlier tasks ({@link ProjectSwitcher}, {@link LogDrawer}) plus the four
- * content panels created in Tasks 6-7 ({@code ProjectPanel}, {@code ConfigPanel},
- * {@code BuildVerifyPanel}, {@link DoctorPanel}). The public API
+ * <p>The top bar shows the currently-open project name (read-only). Opening a
+ * project is done from the {@link ConfigPanel} empty-state. The public API
  * ({@link #getView()}, {@link #hasRunningTasks()}, lifecycle hooks and
  * {@link #refreshPython()}) is consumed by {@code OfflinePythonPlugin}.
  */
@@ -47,16 +44,16 @@ public class CommandShell {
     private final LogDrawer logDrawer = new LogDrawer(logConsole);
     private final Label pyBadge = new Label();
     private final ProjectContext project = new ProjectContext();
-    private final ProjectSwitcher switcher = new ProjectSwitcher(this::createNew, this::openExisting);
+    private final ProjectSwitcher switcher = new ProjectSwitcher();
     private final Map<String, Button> navButtons = new LinkedHashMap<>();
     private final Map<String, String> navLabels = new LinkedHashMap<>();
-    private String current = "project";
+    private String current = "config";
+    private ConfigPanel configPanel;
     private BuildVerifyPanel buildVerifyPanel;
 
     public CommandShell() {
         root.getStylesheets().add(Themes.commonStylesheetUrl());
         root.setStyle("-fx-background-color: transparent;");
-        navLabels.put("project", I18n.get("opb.nav.project"));
         navLabels.put("config",   I18n.get("opb.nav.config"));
         navLabels.put("build",    I18n.get("opb.nav.build"));
         navLabels.put("doctor",   I18n.get("opb.nav.doctor"));
@@ -67,7 +64,7 @@ public class CommandShell {
         root.setCenter(contentWrap);
         root.setRight(logDrawer);
         refreshPython();
-        select("project");
+        select("config");
     }
 
     private Node buildTopBar() {
@@ -90,7 +87,6 @@ public class CommandShell {
         nav.setStyle("-fx-background-color: " + OpbStyle.GLASS_BG_SOFT + ";"
                 + " -fx-border-color: transparent " + OpbStyle.GLASS_BORDER + " transparent transparent;"
                 + " -fx-border-width: 0 1 0 0;");
-        navEntry(nav, "project", "folder-outline", false);
         navEntry(nav, "config",  "package-variant-closed", true);
         navEntry(nav, "build",   "hammer-wrench", false);
         navEntry(nav, "doctor",  "stethoscope", false);
@@ -150,8 +146,7 @@ public class CommandShell {
         current = key;
         navButtons.forEach((k, b) -> applyNavStyle(b, k.equals(key), false));
         Node panel = switch (key) {
-            case "project" -> new ProjectPanel(logConsole, project, this::createNew, this::openExisting);
-            case "config"  -> new ConfigPanel(logConsole, project);
+            case "config"  -> configPanel != null ? configPanel : (configPanel = new ConfigPanel(logConsole, project, this::openExisting));
             case "build"   -> buildVerifyPanel != null ? buildVerifyPanel : (buildVerifyPanel = new BuildVerifyPanel(logConsole, project));
             case "doctor"  -> new DoctorPanel(logConsole, project);
             default -> new Label("—");
@@ -166,20 +161,8 @@ public class CommandShell {
         project.openExisting(dir.toPath());
         switcher.updateName(dir.getName());
         logConsole.log("已打开项目: " + dir);
-    }
-
-    private void createNew() {
-        DirectoryChooser dc = new DirectoryChooser();
-        File dir = dc.showDialog(root.getScene().getWindow());
-        if (dir == null) return;
-        try {
-            project.createNew(dir.toPath());
-            switcher.updateName(dir.getName());
-            logConsole.log("已新建项目: " + dir);
-            GlassNotification.toast(root, GlassNotification.Type.SUCCESS, "项目已初始化");
-        } catch (Exception e) {
-            GlassNotification.toast(root, GlassNotification.Type.ERROR, "新建失败");
-        }
+        // 重新加载配置页(刷新空状态 → 依赖表)
+        if (configPanel != null) configPanel.reload();
     }
 
     private int countDeps() {
@@ -203,7 +186,7 @@ public class CommandShell {
                 ? I18n.get("opb.python.detected", d.pythonVersion(), d.pipVersion() == null ? "?" : d.pipVersion())
                 : I18n.get("opb.python.missing"));
         pyBadge.setStyle("-fx-cursor: hand;" + OpbStyle.badge(ok));
-        if (!ok && !"project".equals(current)) {
+        if (!ok && !"config".equals(current)) {
             contentWrap.getChildren().setAll(new PythonInstallGuide(this::refreshPython));
         }
     }
