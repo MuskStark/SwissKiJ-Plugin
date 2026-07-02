@@ -146,12 +146,13 @@ public class CommandShell {
         current = key;
         navButtons.forEach((k, b) -> applyNavStyle(b, k.equals(key), false));
         Node panel = switch (key) {
-            case "config"  -> configPanel != null ? configPanel : (configPanel = new ConfigPanel(logger, project, this::openExisting));
+            case "config"  -> configPanel != null ? configPanel : (configPanel = new ConfigPanel(logger, project, this::openExisting, this::createNew, this::closeProject));
             case "build"   -> buildVerifyPanel != null ? buildVerifyPanel : (buildVerifyPanel = new BuildVerifyPanel(logger, project));
             case "doctor"  -> new DoctorPanel(logger, project);
             default -> new Label("—");
         };
         contentWrap.getChildren().setAll(panel);
+        VBox.setVgrow(panel, Priority.ALWAYS);  // 面板撑满内容区高度,使空状态可垂直居中
     }
 
     private void openExisting() {
@@ -165,6 +166,35 @@ public class CommandShell {
         logger.log("已打开项目: " + dir);
         // 重新加载配置页(刷新空状态 → 依赖表)
         if (configPanel != null) configPanel.reload();
+        // 构建页缓存失效(项目已切换)
+        buildVerifyPanel = null;
+    }
+
+    private void createNew() {
+        DirectoryChooser dc = new DirectoryChooser();
+        File dir = dc.showDialog(root.getScene().getWindow());
+        if (dir == null) return;
+        try {
+            project.createNew(dir.toPath());
+            logger.setLogFile(dir.toPath().resolve(".offline-python.log"));
+            switcher.updateName(dir.getName());
+            logger.log("已新建项目: " + dir);
+            GlassNotification.toast(root, GlassNotification.Type.SUCCESS, "项目已初始化");
+            if (configPanel != null) configPanel.reload();
+            buildVerifyPanel = null;
+        } catch (Exception e) {
+            GlassNotification.toast(root, GlassNotification.Type.ERROR, "新建失败");
+        }
+    }
+
+    /** 后退:关闭当前项目,返回新建/打开项目界面。 */
+    private void closeProject() {
+        project.openExisting(null);  // dir=null → 清空 projectDir + config
+        logger.setLogFile(null);
+        switcher.updateName(null);
+        logger.log("已关闭项目");
+        if (configPanel != null) configPanel.reload();
+        buildVerifyPanel = null;
     }
 
     private int countDeps() {

@@ -15,19 +15,16 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
 import plugin.swisskit.offlinepython.domain.DependencySpec;
 import plugin.swisskit.offlinepython.domain.PlatformCatalog;
 import plugin.swisskit.offlinepython.domain.RequirementsFile;
 import plugin.swisskit.offlinepython.infra.OpbLogger;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 import plugin.swisskit.offlinepython.ui.ProjectContext;
-import plugin.swisskit.offlinepython.ui.control.EmptyState;
 import plugin.swisskit.offlinepython.ui.control.PanelHeader;
 import plugin.swisskit.offlinepython.ui.control.PlatformMultiSelect;
 import plugin.swisskit.offlinepython.ui.dialog.PyPISearchDialog;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -67,49 +64,73 @@ public class ConfigPanel extends CommandPanel {
     private final PlatformMultiSelect platformSelect = new PlatformMultiSelect();
     private long pendingSize = 0L; // 在线搜索带回的 wheel 大小，提交时写入行
     private final Runnable onOpen;
+    private final Runnable onNew;
+    private final Runnable onClose;
     /** 表单+表格+选项+摘要的容器(有项目时显示,无项目时隐藏)。 */
     private final VBox contentBox = new VBox();
-    /** 空状态容器(无项目时显示,有项目时隐藏)。 */
+    /** 无项目时的居中按钮容器(无项目时显示,有项目时隐藏)。 */
     private final VBox emptyHolder = new VBox();
 
-    public ConfigPanel(OpbLogger log, ProjectContext project, Runnable onOpen) {
+    public ConfigPanel(OpbLogger log, ProjectContext project, Runnable onOpen, Runnable onNew, Runnable onClose) {
         super(log, project);
         this.onOpen = onOpen;
+        this.onNew = onNew;
+        this.onClose = onClose;
         recursive.setSelected(true); wheelFirst.setSelected(true);
+        // 让 emptyHolder 撑满整个面板高度,实现真正的垂直居中
+        VBox.setVgrow(emptyHolder, Priority.ALWAYS);
+        emptyHolder.setAlignment(javafx.geometry.Pos.CENTER);
         buildUi();
         reload();
     }
 
-    /** 重新加载:无项目显示空状态,有项目加载依赖表。供 CommandShell 打开项目后调用。 */
+    /** 后退按钮:关闭当前项目,返回新建/打开项目界面。 */
+    private void closeProject() {
+        if (onClose != null) onClose.run();
+    }
+
+    /** 重新加载:无项目只显示居中按钮(隐藏 header/card),有项目恢复完整 UI。 */
     public void reload() {
         boolean hasProject = project.getProjectDir() != null;
         contentBox.setManaged(hasProject); contentBox.setVisible(hasProject);
         emptyHolder.setManaged(!hasProject); emptyHolder.setVisible(!hasProject);
         if (hasProject) {
+            // 恢复基类 card 样式
+            setStyle(OpbStyle.card() + " -fx-padding: 18;");
             loadFromProject();
-        } else if (emptyHolder.getChildren().isEmpty()) {
-            EmptyState empty = new EmptyState("folder-off-outline", I18n.get("opb.project.empty"));
-            Button openBtn = UiUtils.glassBtn(I18n.get("opb.project.open"), true);
-            openBtn.setOnAction(e -> { if (onOpen != null) onOpen.run(); });
-            empty.setActions(new HBox(8, openBtn));
-            emptyHolder.getChildren().setAll(empty);
+        } else {
+            // 无项目:去掉 card 边框/padding,让两按钮在整个区域居中
+            setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 0;");
+            if (emptyHolder.getChildren().isEmpty()) buildEmptyState();
         }
+    }
+
+    /** 无项目时:居中显示「新建项目」「打开项目」两个按钮。 */
+    private void buildEmptyState() {
+        Button newBtn = UiUtils.glassBtn(I18n.get("opb.project.new"), true);
+        newBtn.setOnAction(e -> { if (onNew != null) onNew.run(); });
+        Button openBtn = UiUtils.glassBtn(I18n.get("opb.project.open"), false);
+        openBtn.setOnAction(e -> { if (onOpen != null) onOpen.run(); });
+        HBox actions = new HBox(12, newBtn, openBtn);
+        actions.setAlignment(javafx.geometry.Pos.CENTER);
+        emptyHolder.setAlignment(javafx.geometry.Pos.CENTER);
+        emptyHolder.getChildren().setAll(actions);
     }
 
     @SuppressWarnings("unchecked")
     private void buildUi() {
         PanelHeader header = new PanelHeader(I18n.get("opb.deps.title"));
-        Button imp = UiUtils.glassBtn("导入 requirements.txt", false);
-        imp.setTooltip(new Tooltip("选择本地 requirements.txt 并解析为依赖表"));
-        imp.setOnAction(e -> doImport());
+        // 后退按钮:关闭当前项目,返回新建/打开项目界面
+        Button back = UiUtils.glassBtn("← 后退", false);
+        back.setTooltip(new Tooltip("返回新建或打开项目界面"));
+        back.setOnAction(e -> closeProject());
         Button search = UiUtils.glassBtn("🔍 在线搜索", false);
         search.setTooltip(new Tooltip("从 PyPI 在线搜索该包的 wheel,选中后回填包名/版本/平台"));
         search.setOnAction(e -> doSearch());
         Button addBtn = UiUtils.glassBtn("增加配置", true);
         addBtn.setTooltip(new Tooltip("将当前包名/版本/平台加入依赖表并保存"));
         addBtn.setOnAction(e -> doSave());
-        header.addActions(imp, search, addBtn);
-        getChildren().add(header);
+        header.addActions(back, search, addBtn);
 
         // --- 行2：包名 / 版本 / 目标平台（per-dep） ---
         nField.setStyle(UiUtils.fieldStyle()); nField.setPromptText("包名");
@@ -150,8 +171,8 @@ public class ConfigPanel extends CommandPanel {
 
         VBox tableBox = new VBox(6, table);
         contentBox.setSpacing(8);
-        contentBox.getChildren().addAll(row2, tableBox, opts, summaryBar);
-        // header + contentBox(有项目) + emptyHolder(无项目);reload() 切换可见性
+        contentBox.getChildren().addAll(header, row2, tableBox, opts, summaryBar);
+        // contentBox(有项目:header+表单+表格) + emptyHolder(无项目:居中两按钮);reload() 切换可见性
         getChildren().addAll(contentBox, emptyHolder);
     }
 
@@ -250,28 +271,6 @@ public class ConfigPanel extends CommandPanel {
             refreshSummary();
         } catch (Exception e) {
             log.log("加载 requirements 失败: " + e.getMessage());
-        }
-    }
-
-    private void doImport() {
-        FileChooser fc = new FileChooser();
-        File f = fc.showOpenDialog(getScene().getWindow());
-        if (f == null) return;
-        try {
-            Map<String, List<String>> dp = (project.getConfig() != null && project.getConfig().getPython() != null)
-                    ? project.getConfig().getPython().getDepPlatforms() : new LinkedHashMap<>();
-            List<String> defaults = defaultPlatforms();
-            List<Row> rows = new ArrayList<>();
-            for (DependencySpec d : RequirementsFile.parse(Files.readString(f.toPath()))) {
-                rows.add(new Row(d.name(), d.versionSpec(),
-                        dp.getOrDefault(DependencySpec.normalizeName(d.name()), defaults)));
-            }
-            table.getItems().setAll(rows);
-            table.refresh();
-            refreshSummary();
-            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已导入 requirements.txt");
-        } catch (Exception e) {
-            GlassNotification.toast(this, GlassNotification.Type.ERROR, "导入失败");
         }
     }
 
