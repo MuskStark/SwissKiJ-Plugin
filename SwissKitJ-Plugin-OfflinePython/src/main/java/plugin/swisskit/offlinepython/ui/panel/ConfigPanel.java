@@ -10,7 +10,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -22,8 +21,7 @@ import plugin.swisskit.offlinepython.infra.OpbLogger;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 import plugin.swisskit.offlinepython.ui.ProjectContext;
 import plugin.swisskit.offlinepython.ui.control.PanelHeader;
-import plugin.swisskit.offlinepython.ui.control.PlatformMultiSelect;
-import plugin.swisskit.offlinepython.ui.dialog.PyPISearchDialog;
+import plugin.swisskit.offlinepython.ui.dialog.AddDepDialog;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -58,24 +56,21 @@ public class ConfigPanel extends CommandPanel {
     private final CheckBox upgradePip = new CheckBox("升级 pip");
     private final Label summary = new Label();
 
-    // 行2 表单：当前正在新增/编辑的这条依赖
-    private final TextField nField = new TextField();
-    private final TextField vField = new TextField();
-    private final PlatformMultiSelect platformSelect = new PlatformMultiSelect();
-    private long pendingSize = 0L; // 在线搜索带回的 wheel 大小，提交时写入行
     private final Runnable onOpen;
     private final Runnable onNew;
     private final Runnable onClose;
+    private final Runnable onBuild;
     /** 表单+表格+选项+摘要的容器(有项目时显示,无项目时隐藏)。 */
     private final VBox contentBox = new VBox();
     /** 无项目时的居中按钮容器(无项目时显示,有项目时隐藏)。 */
     private final VBox emptyHolder = new VBox();
 
-    public ConfigPanel(OpbLogger log, ProjectContext project, Runnable onOpen, Runnable onNew, Runnable onClose) {
+    public ConfigPanel(OpbLogger log, ProjectContext project, Runnable onOpen, Runnable onNew, Runnable onClose, Runnable onBuild) {
         super(log, project);
         this.onOpen = onOpen;
         this.onNew = onNew;
         this.onClose = onClose;
+        this.onBuild = onBuild;
         recursive.setSelected(true); wheelFirst.setSelected(true);
         // 让 emptyHolder 撑满整个面板高度,实现真正的垂直居中
         VBox.setVgrow(emptyHolder, Priority.ALWAYS);
@@ -124,19 +119,22 @@ public class ConfigPanel extends CommandPanel {
         Button back = UiUtils.glassBtn("← 后退", false);
         back.setTooltip(new Tooltip("返回新建或打开项目界面"));
         back.setOnAction(e -> closeProject());
-        Button search = UiUtils.glassBtn("🔍 在线搜索", false);
-        search.setTooltip(new Tooltip("从 PyPI 在线搜索该包的 wheel,选中后回填包名/版本/平台"));
-        search.setOnAction(e -> doSearch());
-        Button addBtn = UiUtils.glassBtn("增加配置", true);
-        addBtn.setTooltip(new Tooltip("将当前包名/版本/平台加入依赖表并保存"));
-        addBtn.setOnAction(e -> doSave());
-        header.addActions(back, search, addBtn);
-
-        // --- 行2：包名 / 版本 / 目标平台（per-dep,用 promptText 代替标签） ---
-        nField.setStyle(UiUtils.fieldStyle()); nField.setPromptText("包名");
-        vField.setStyle(UiUtils.fieldStyle()); vField.setPromptText("版本 (如 ==1.26.4)");
-        HBox row2 = new HBox(8, nField, vField, platformSelect);
-        HBox.setHgrow(nField, Priority.ALWAYS);
+        // 增加依赖:弹窗填写包名/版本/平台
+        Button addDep = UiUtils.glassBtn("＋ 增加依赖", false);
+        addDep.setTooltip(new Tooltip("弹窗填写包名/版本/目标平台,加入依赖表"));
+        addDep.setOnAction(e -> addDep());
+        // 保存配置:持久化当前依赖表到 requirements.txt + config.json
+        Button saveCfg = UiUtils.glassBtn("💾 保存配置", false);
+        saveCfg.setTooltip(new Tooltip("保存当前依赖表和下载选项到项目"));
+        saveCfg.setOnAction(e -> saveConfig());
+        // 构建:保存配置并跳转构建页
+        Button build = UiUtils.glassBtn("▶ 构建", true);
+        build.setTooltip(new Tooltip("保存配置并跳转到构建页"));
+        build.setOnAction(e -> {
+            saveConfig();
+            if (onBuild != null) onBuild.run();
+        });
+        header.addActions(back, addDep, saveCfg, build);
 
         // --- 表格列 ---
         TableColumn<Row, String> cName = textCol("包名", 1.4, r -> r.name.get());
@@ -159,8 +157,6 @@ public class ConfigPanel extends CommandPanel {
         table.setFixedCellSize(30);
         table.setMinHeight(150);
         table.getStyleClass().add("sk-table");
-        // 主从编辑：选中行 → 载入表单；清空 → 重置为新增态
-        table.getSelectionModel().selectedItemProperty().addListener((o, ov, nv) -> loadForm(nv));
 
         // --- 选项 ---
         HBox opts = new HBox(18, recursive, wheelFirst, upgradePip);
@@ -173,7 +169,7 @@ public class ConfigPanel extends CommandPanel {
 
         VBox tableBox = new VBox(6, table);
         contentBox.setSpacing(8);
-        contentBox.getChildren().addAll(header, row2, tableBox, opts, summaryBar);
+        contentBox.getChildren().addAll(header, tableBox, opts, summaryBar);
         // contentBox(有项目:header+表单+表格) + emptyHolder(无项目:居中两按钮);reload() 切换可见性
         getChildren().addAll(contentBox, emptyHolder);
     }
@@ -224,21 +220,6 @@ public class ConfigPanel extends CommandPanel {
         return c;
     }
 
-    /** 载入行到表单（编辑态）；null → 重置为新增态。 */
-    private void loadForm(Row r) {
-        if (r == null) {
-            nField.clear();
-            vField.clear();
-            platformSelect.setSelected(defaultPlatforms());
-            pendingSize = 0L;
-        } else {
-            nField.setText(r.name.get());
-            vField.setText(r.version.get());
-            platformSelect.setSelected(r.platforms);
-            pendingSize = 0L;
-        }
-    }
-
     private List<String> defaultPlatforms() {
         return (project.getConfig() != null && project.getConfig().getPython() != null
                 && project.getConfig().getPython().getPlatforms() != null)
@@ -268,50 +249,26 @@ public class ConfigPanel extends CommandPanel {
         }
     }
 
-    private void doSearch() {
-        PyPISearchDialog dlg = new PyPISearchDialog(getScene().getWindow());
-        dlg.showAndWait().ifPresent(w -> {
-            nField.setText(dlg.packageName());
-            vField.setText("==" + w.version());
-            platformSelect.setSelected(List.of(w.platformTag()));
-            pendingSize = w.sizeBytes();
+    /** 增加依赖:弹窗填写包名/版本/平台(支持在线搜索),确认后加入表格。 */
+    private void addDep() {
+        AddDepDialog dlg = new AddDepDialog(getScene().getWindow());
+        dlg.showAndWait().ifPresent(r -> {
+            Row nr = new Row(r.name(), r.version(), r.platforms());
+            table.getItems().add(nr);
+            table.refresh();
+            refreshSummary();
+            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已添加依赖: " + r.name());
         });
     }
 
-    /** 提交表单（更新选中行或新增）并持久化；thenBuild=true 再跳转构建。 */
-    private void doSave() {
+    /** 保存配置:持久化当前依赖表 + 下载选项到项目。 */
+    private void saveConfig() {
         Path dir = project.getProjectDir();
         if (dir == null) { GlassNotification.toast(this, GlassNotification.Type.WARNING, "先打开或新建项目"); return; }
-        String name = nField.getText().trim();
-        boolean committed = false;
-        boolean updating = false;
-        if (!name.isBlank()) {
-            String ver = vField.getText().trim();
-            List<String> plats = new ArrayList<>(platformSelect.getSelected());
-            Row sel = table.getSelectionModel().getSelectedItem();
-            updating = sel != null;
-            if (updating) {
-                sel.name.set(name); sel.version.set(ver);
-                sel.platforms.clear(); sel.platforms.addAll(plats);
-                sel.size.set(pendingSize > 0 ? humanSize(pendingSize) : "—");
-            } else {
-                Row nr = new Row(name, ver, plats);
-                nr.size.set(pendingSize > 0 ? humanSize(pendingSize) : "—");
-                table.getItems().add(nr);
-            }
-            pendingSize = 0L;
-            table.refresh();
-            committed = true;
-        }
         try {
             persist(dir);
-            GlassNotification.toast(this, GlassNotification.Type.SUCCESS,
-                    committed ? (updating ? "已更新依赖" : "已添加依赖") : "已保存配置");
+            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已保存配置");
             log.log("已保存 " + table.getItems().size() + " 条依赖");
-            if (committed) {
-                // 重置表单为新增态：清空选中会触发 loadForm(null)，清掉包名/版本/平台，避免二次添加
-                table.getSelectionModel().clearSelection();
-            }
         } catch (Exception e) {
             log.log("保存失败: " + e.getMessage());
             GlassNotification.toast(this, GlassNotification.Type.ERROR, "保存失败");

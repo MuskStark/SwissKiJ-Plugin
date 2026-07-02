@@ -146,7 +146,7 @@ public class CommandShell {
         current = key;
         navButtons.forEach((k, b) -> applyNavStyle(b, k.equals(key), false));
         Node panel = switch (key) {
-            case "config"  -> configPanel != null ? configPanel : (configPanel = new ConfigPanel(logger, project, this::openExisting, this::createNew, this::closeProject));
+            case "config"  -> configPanel != null ? configPanel : (configPanel = new ConfigPanel(logger, project, this::openExisting, this::createNew, this::closeProject, () -> select("build")));
             case "build"   -> buildVerifyPanel != null ? buildVerifyPanel : (buildVerifyPanel = new BuildVerifyPanel(logger, project));
             case "doctor"  -> new DoctorPanel(logger, project);
             default -> new Label("—");
