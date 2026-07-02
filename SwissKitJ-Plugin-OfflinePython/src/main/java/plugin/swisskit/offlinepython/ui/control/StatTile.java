@@ -6,7 +6,7 @@ import plugin.swisskit.offlinepython.ui.OpbStyle;
 
 /**
  * 结果统计瓦片:小标题(sk-t3, 11px)+ 大值(sk-t1, 15px,规范上限)。
- * 替换 BuildPanel 手写 VBox(原 16px 越界)。
+ * Replaces the former hand-written stat VBox (originally violated the 16px font-scale).
  */
 public class StatTile extends VBox {
     public StatTile(String label, String value) {

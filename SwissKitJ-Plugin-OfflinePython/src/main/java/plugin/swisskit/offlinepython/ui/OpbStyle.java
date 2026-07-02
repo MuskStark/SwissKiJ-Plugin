@@ -103,12 +103,6 @@ public final class OpbStyle {
         return "-fx-text-fill: " + TEXT_TERTIARY + "; -fx-font-size: 10px; -fx-font-weight: bold;";
     }
 
-    /** Disabled (V2/V3) nav item style. */
-    public static String navItemDisabled() {
-        return "-fx-background-color: transparent; -fx-text-fill: " + TEXT_TERTIARY
-             + "; -fx-background-radius: " + NAV_RADIUS + ";";
-    }
-
     /** Small count badge (deps 角标). */
     public static String countBadge() {
         return "-fx-background-color: " + ACCENT + "; -fx-text-fill: white;"
@@ -165,11 +159,6 @@ public final class OpbStyle {
         return "-fx-background-color: " + GLASS_BG_SOFT + ";"
              + "-fx-border-color: transparent transparent transparent " + GLASS_BORDER + ";"
              + "-fx-border-width: 0 0 0 1;";
-    }
-
-    /** LogDrawer collapsed state: narrower, no content. */
-    public static String logDrawerCollapsedStyle() {
-        return logDrawerStyle();
     }
 
     /** Log level filter pill: accent-soft when on, hover-tier when off. */

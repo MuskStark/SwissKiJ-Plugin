@@ -77,10 +77,13 @@ public class ConfigPanel extends CommandPanel {
     private void buildUi() {
         PanelHeader header = new PanelHeader(I18n.get("opb.deps.title"));
         Button imp = UiUtils.glassBtn("导入 requirements.txt", false);
+        imp.setTooltip(new Tooltip("选择本地 requirements.txt 并解析为依赖表"));
         imp.setOnAction(e -> doImport());
         Button search = UiUtils.glassBtn("🔍 在线搜索", false);
+        search.setTooltip(new Tooltip("从 PyPI 在线搜索该包的 wheel,选中后回填包名/版本/平台"));
         search.setOnAction(e -> doSearch());
         Button addBtn = UiUtils.glassBtn("增加配置", true);
+        addBtn.setTooltip(new Tooltip("将当前包名/版本/平台加入依赖表并保存"));
         addBtn.setOnAction(e -> doSave());
         header.addActions(imp, search, addBtn);
         getChildren().add(header);

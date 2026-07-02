@@ -66,7 +66,6 @@ public class CommandShell {
         contentWrap.setStyle("-fx-background-color: transparent;");
         root.setCenter(contentWrap);
         root.setRight(logDrawer);
-        root.addEventHandler(NavEvent.NAV, e -> select(e.target()));
         refreshPython();
         select("project");
     }
