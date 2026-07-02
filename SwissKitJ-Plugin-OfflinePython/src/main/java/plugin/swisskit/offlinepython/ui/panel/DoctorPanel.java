@@ -9,14 +9,18 @@ import plugin.swisskit.offlinepython.command.DoctorService;
 import plugin.swisskit.offlinepython.ui.LogConsole;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 import plugin.swisskit.offlinepython.ui.ProjectContext;
+import plugin.swisskit.offlinepython.ui.control.PanelHeader;
 
 public class DoctorPanel extends CommandPanel {
     private final GridPane grid = new GridPane();
 
     public DoctorPanel(LogConsole log, ProjectContext project) {
         super(log, project);
-        getChildren().add(titleNode());
+        PanelHeader header = new PanelHeader(I18n.get("opb.doctor.title"));
         Button run = UiUtils.glassBtn("▶ 运行诊断", true);
+        header.addActions(run);
+        getChildren().add(header);
+
         run.setOnAction(e -> {
             grid.getChildren().clear();
             int row = 0;
@@ -34,7 +38,7 @@ public class DoctorPanel extends CommandPanel {
             log.log("诊断完成");
         });
         grid.setHgap(14); grid.setVgap(6);
-        getChildren().addAll(run, grid);
+        getChildren().add(grid);
     }
 
     @Override public String title() { return I18n.get("opb.doctor.title"); }

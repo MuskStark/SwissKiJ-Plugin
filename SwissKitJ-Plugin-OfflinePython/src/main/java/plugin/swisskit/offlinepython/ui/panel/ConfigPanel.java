@@ -14,7 +14,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import plugin.swisskit.offlinepython.domain.DependencySpec;
@@ -23,6 +22,7 @@ import plugin.swisskit.offlinepython.domain.RequirementsFile;
 import plugin.swisskit.offlinepython.ui.LogConsole;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 import plugin.swisskit.offlinepython.ui.ProjectContext;
+import plugin.swisskit.offlinepython.ui.control.PanelHeader;
 import plugin.swisskit.offlinepython.ui.control.PlatformMultiSelect;
 import plugin.swisskit.offlinepython.ui.dialog.PyPISearchDialog;
 
@@ -34,7 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class DepsPanel extends CommandPanel {
+public class ConfigPanel extends CommandPanel {
 
     /** Editable row backing the table: name/version/size + per-row target platforms. */
     public static class Row {
@@ -54,8 +54,6 @@ public class DepsPanel extends CommandPanel {
         }
     }
 
-    private static final String WHITE = OpbStyle.TEXT_PRIMARY;
-
     private final TableView<Row> table = new TableView<>();
     private final CheckBox recursive = new CheckBox("递归");
     private final CheckBox wheelFirst = new CheckBox("wheel 优先");
@@ -68,7 +66,7 @@ public class DepsPanel extends CommandPanel {
     private final PlatformMultiSelect platformSelect = new PlatformMultiSelect();
     private long pendingSize = 0L; // 在线搜索带回的 wheel 大小，提交时写入行
 
-    public DepsPanel(LogConsole log, ProjectContext project) {
+    public ConfigPanel(LogConsole log, ProjectContext project) {
         super(log, project);
         recursive.setSelected(true); wheelFirst.setSelected(true);
         buildUi();
@@ -77,29 +75,21 @@ public class DepsPanel extends CommandPanel {
 
     @SuppressWarnings("unchecked")
     private void buildUi() {
-        getChildren().add(titleNode());
-
-        // --- 行1：导入（独占一行） ---
+        PanelHeader header = new PanelHeader(I18n.get("opb.deps.title"));
         Button imp = UiUtils.glassBtn("导入 requirements.txt", false);
-        imp.setTooltip(new Tooltip("选择本地 requirements.txt 并解析为依赖表"));
         imp.setOnAction(e -> doImport());
-        HBox row1 = new HBox(8, imp);
+        Button search = UiUtils.glassBtn("🔍 在线搜索", false);
+        search.setOnAction(e -> doSearch());
+        Button addBtn = UiUtils.glassBtn("增加配置", true);
+        addBtn.setOnAction(e -> doSave());
+        header.addActions(imp, search, addBtn);
+        getChildren().add(header);
 
         // --- 行2：包名 / 版本 / 目标平台（per-dep） ---
         nField.setStyle(UiUtils.fieldStyle()); nField.setPromptText("包名");
         vField.setStyle(UiUtils.fieldStyle()); vField.setPromptText("版本 (如 ==1.26.4)");
         HBox row2 = new HBox(8, labeled("包名", nField), labeled("版本", vField), platformBox());
         HBox.setHgrow(nField, Priority.ALWAYS);
-
-        // --- 行3：在线搜索 / 增加配置 ---
-        Button search = UiUtils.glassBtn("🔍 在线搜索", false);
-        search.setTooltip(new Tooltip("从 PyPI 在线搜索该包的 wheel，选中后回填包名/版本/平台"));
-        search.setOnAction(e -> doSearch());
-        Button addBtn = UiUtils.glassBtn("增加配置", true);
-        addBtn.setTooltip(new Tooltip("将当前包名/版本/平台加入依赖表并保存"));
-        addBtn.setOnAction(e -> doSave());
-        Region spring3 = new Region(); HBox.setHgrow(spring3, Priority.ALWAYS);
-        HBox row3 = new HBox(8, search, spring3, addBtn);
 
         // --- 表格列 ---
         TableColumn<Row, String> cName = textCol("包名", 1.4, r -> r.name.get());
@@ -133,7 +123,7 @@ public class DepsPanel extends CommandPanel {
         HBox.setHgrow(summaryBar, Priority.ALWAYS);
 
         VBox tableBox = new VBox(6, table);
-        getChildren().addAll(row1, row2, row3, tableBox, opts, summaryBar);
+        getChildren().addAll(row2, tableBox, opts, summaryBar);
     }
 
     private TableColumn<Row, String> textCol(String title, double widthFactor,
@@ -166,7 +156,7 @@ public class DepsPanel extends CommandPanel {
                 HBox icons = new HBox(3);
                 String firstArch = null; boolean mixedArch = false; boolean anyArch = false;
                 for (String p : plats) {
-                    var ic = MdiIconUtil.createIcon(PlatformCatalog.iconOf(p), 14, WHITE);
+                    var ic = MdiIconUtil.createIcon(PlatformCatalog.iconOf(p), 14, OpbStyle.TEXT_PRIMARY);
                     Tooltip.install(ic, new Tooltip(PlatformCatalog.labelOf(p)));
                     icons.getChildren().add(ic);
                     String ab = PlatformCatalog.archBitsLabel(p);
