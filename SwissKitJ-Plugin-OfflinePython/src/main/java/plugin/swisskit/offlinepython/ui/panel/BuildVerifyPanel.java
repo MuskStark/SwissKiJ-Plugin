@@ -17,6 +17,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import plugin.swisskit.offlinepython.command.BuildService;
+import plugin.swisskit.offlinepython.command.PackageService;
 import plugin.swisskit.offlinepython.command.VerifyService;
 import plugin.swisskit.offlinepython.domain.BuildConfig;
 import plugin.swisskit.offlinepython.domain.BuildSummary;
@@ -52,6 +53,7 @@ public class BuildVerifyPanel extends CommandPanel {
     private final Label conclusion = new Label();
     private PluginTask<BuildSummary> task;
     private ProcessRunner runner;
+    private final Button packageBtn = UiUtils.glassBtn("📦 打包成 ZIP", false);
 
     public BuildVerifyPanel(OpbLogger log, ProjectContext project) {
         super(log, project);
@@ -91,6 +93,13 @@ public class BuildVerifyPanel extends CommandPanel {
 
         tiles.setHgap(8); tiles.setVgap(8);
         buildSection.getChildren().add(tiles);
+
+        packageBtn.setVisible(false);
+        packageBtn.setManaged(false);
+        packageBtn.setOnAction(e -> runPackage());
+        HBox pkgRow = new HBox(8, packageBtn);
+        buildSection.getChildren().add(pkgRow);
+
         getChildren().add(buildSection);
 
         // ── 校验区 ──
@@ -192,6 +201,13 @@ public class BuildVerifyPanel extends CommandPanel {
             progress.setProgress(1);
             progress.getStyleClass().add("success");
             build.setDisable(false);
+            packageBtn.setVisible(true);
+            packageBtn.setManaged(true);
+            // 自动打包
+            if (project.getConfig() != null && project.getConfig().getBundle() != null
+                    && project.getConfig().getBundle().isAutoPackage()) {
+                runPackage();
+            }
         }));
         task.setOnFailed(e -> Platform.runLater(() -> {
             log.log("ERROR: " + task.getException().getMessage());
@@ -203,6 +219,30 @@ public class BuildVerifyPanel extends CommandPanel {
         Thread t = new Thread(task, "OfflinePython-Build");
         t.setDaemon(true);
         t.start();
+    }
+
+    private void runPackage() {
+        Path dir = project.getProjectDir();
+        if (dir == null) return;
+        packageBtn.setDisable(true);
+        PluginTask<Path> t = new PluginTask<>() {
+            @Override protected Path call() throws Exception {
+                BuildConfig cfg = JsonStore.load(dir.resolve("config.json"), BuildConfig.class);
+                return new PackageService(log).packageBundle(dir, cfg);
+            }
+        };
+        t.setOnSucceeded(e -> Platform.runLater(() -> {
+            Path zip = t.getValue();
+            log.log("打包完成: " + zip);
+            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已打包: " + zip.getFileName());
+            packageBtn.setDisable(false);
+        }));
+        t.setOnFailed(e -> Platform.runLater(() -> {
+            log.log("打包失败: " + t.getException().getMessage());
+            GlassNotification.toast(this, GlassNotification.Type.ERROR, "打包失败");
+            packageBtn.setDisable(false);
+        }));
+        new Thread(t, "OfflinePython-Package").start();
     }
 
     /** 构建中粗略推进进度条(每个 pip 日志行推进一点,封顶 95%)。 */

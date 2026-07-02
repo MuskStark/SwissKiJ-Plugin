@@ -54,6 +54,7 @@ public class ConfigPanel extends CommandPanel {
     private final CheckBox recursive = new CheckBox("递归");
     private final CheckBox wheelFirst = new CheckBox("wheel 优先");
     private final CheckBox upgradePip = new CheckBox("升级 pip");
+    private final CheckBox autoPackage = new CheckBox("构建后自动打包");
     private final Label summary = new Label();
 
     private final Runnable onOpen;
@@ -157,9 +158,16 @@ public class ConfigPanel extends CommandPanel {
         table.setFixedCellSize(30);
         table.setMinHeight(150);
         table.getStyleClass().add("sk-table");
+        // 双击依赖行:弹窗编辑该依赖(包名/版本/平台),确认后原地更新
+        table.setOnMouseClicked(e -> {
+            if (e.getClickCount() < 2) return;
+            Row sel = table.getSelectionModel().getSelectedItem();
+            if (sel == null) return;
+            editDep(sel);
+        });
 
         // --- 选项 ---
-        HBox opts = new HBox(18, recursive, wheelFirst, upgradePip);
+        HBox opts = new HBox(18, recursive, wheelFirst, upgradePip, autoPackage);
         opts.setStyle("-fx-text-fill: " + OpbStyle.TEXT_SECONDARY + ";");
 
         // --- 底栏：摘要 ---
@@ -229,6 +237,9 @@ public class ConfigPanel extends CommandPanel {
     private void loadFromProject() {
         Path dir = project.getProjectDir();
         if (dir == null) return;
+        if (project.getConfig() != null && project.getConfig().getBundle() != null) {
+            autoPackage.setSelected(project.getConfig().getBundle().isAutoPackage());
+        }
         try {
             Path req = dir.resolve("requirements.txt");
             List<Row> rows = new ArrayList<>();
@@ -261,6 +272,21 @@ public class ConfigPanel extends CommandPanel {
         });
     }
 
+    /** 编辑依赖:双击行触发,弹窗预填该行内容,确认后原地更新。 */
+    private void editDep(Row row) {
+        AddDepDialog dlg = new AddDepDialog(getScene().getWindow(),
+                row.name.get(), row.version.get(), row.platforms);
+        dlg.showAndWait().ifPresent(r -> {
+            row.name.set(r.name());
+            row.version.set(r.version());
+            row.platforms.clear();
+            row.platforms.addAll(r.platforms());
+            table.refresh();
+            refreshSummary();
+            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已更新依赖: " + r.name());
+        });
+    }
+
     /** 保存配置:持久化当前依赖表 + 下载选项到项目。 */
     private void saveConfig() {
         Path dir = project.getProjectDir();
@@ -283,6 +309,9 @@ public class ConfigPanel extends CommandPanel {
             project.getConfig().getDownload().setRecursive(recursive.isSelected());
             project.getConfig().getDownload().setOnlyBinary(wheelFirst.isSelected());
             project.getConfig().getDownload().setUpgradePip(upgradePip.isSelected());
+            if (project.getConfig().getBundle() != null) {
+                project.getConfig().getBundle().setAutoPackage(autoPackage.isSelected());
+            }
             Map<String, List<String>> dp = project.getConfig().getPython().getDepPlatforms();
             dp.clear();
             for (Row r : table.getItems()) {
