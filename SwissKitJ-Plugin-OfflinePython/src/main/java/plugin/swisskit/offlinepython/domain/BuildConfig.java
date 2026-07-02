@@ -8,6 +8,7 @@ public @Data class BuildConfig {
     private Repository repository = new Repository();
     private Download download = new Download();
     private Pkg pkg = new Pkg();
+    private Bundle bundle = new Bundle();   // ← 新增
 
     public static BuildConfig defaults() {
         BuildConfig c = new BuildConfig();
@@ -25,6 +26,7 @@ public @Data class BuildConfig {
         c.pkg.zip = true;
         c.pkg.sha256 = true;
         c.pkg.readme = true;
+        c.bundle.sha256 = true;
         return c;
     }
 
@@ -61,5 +63,15 @@ public @Data class BuildConfig {
         private boolean zip;
         private boolean sha256;
         private boolean readme;
+    }
+
+    /** 部署 bundle 打包配置(打包 output/ → bundle.zip)。 */
+    @Data public static class Bundle {
+        /** 构建后是否自动打包(默认关)。手动打包按钮恒可用。 */
+        private boolean autoPackage;
+        /** bundle 名,空 = 用项目目录名。 */
+        private String name = "";
+        /** 是否在 ZIP 内包含 SHA256SUMS。 */
+        private boolean sha256 = true;
     }
 }
