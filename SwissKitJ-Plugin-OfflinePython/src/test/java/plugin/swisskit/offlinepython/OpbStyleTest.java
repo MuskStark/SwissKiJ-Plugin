@@ -88,15 +88,7 @@ class OpbStyleTest {
     void newLayoutHelpersUseTokensNotHex() {
         assertTrue(OpbStyle.topBar().contains(OpbStyle.GLASS_BORDER));
         assertTrue(OpbStyle.projectSwitcher().contains(OpbStyle.GLASS_BG_HOVER));
-        assertTrue(OpbStyle.logPillStyle(true).contains(OpbStyle.ACCENT_SOFT));
-        assertTrue(OpbStyle.logPillStyle(false).contains(OpbStyle.GLASS_BG_HOVER));
         assertTrue(OpbStyle.segStyle(true).contains(OpbStyle.BG_SELECTED));
         assertTrue(OpbStyle.statTile().contains(OpbStyle.GLASS_BORDER));
-    }
-
-    @Test
-    void drawerWidthsAreGridAligned() {
-        assertEquals(240, OpbStyle.LOG_DRAWER_WIDTH);
-        assertEquals(40, OpbStyle.LOG_DRAWER_COLLAPSED_WIDTH);
     }
 }

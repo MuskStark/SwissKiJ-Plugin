@@ -43,8 +43,6 @@ public final class OpbStyle {
     public static final int CARD_RADIUS   = 8;   // 规范 §3.4:卡片/表格 8px(原 12 越界)
     public static final int NAV_RADIUS    = 6;   // 规范 §3.4:控件 6px(原 8)
     public static final int SIDEBAR_WIDTH      = 200;   // 原 220,4 倍数
-    public static final int LOG_DRAWER_WIDTH   = 240;
-    public static final int LOG_DRAWER_COLLAPSED_WIDTH = 40;
 
     /** Glass card surface: elevated fill + hairline border + 8px radius. */
     public static String card() {
@@ -152,20 +150,6 @@ public final class OpbStyle {
     /** Nav item icon fill color: secondary when idle, primary when active. */
     public static String navItemIconColor(boolean active) {
         return active ? TEXT_PRIMARY : TEXT_SECONDARY;
-    }
-
-    /** LogDrawer container (expanded): base bg + left 1px border. */
-    public static String logDrawerStyle() {
-        return "-fx-background-color: " + GLASS_BG_SOFT + ";"
-             + "-fx-border-color: transparent transparent transparent " + GLASS_BORDER + ";"
-             + "-fx-border-width: 0 0 0 1;";
-    }
-
-    /** Log level filter pill: accent-soft when on, hover-tier when off. */
-    public static String logPillStyle(boolean on) {
-        return "-fx-background-color: " + (on ? ACCENT_SOFT : GLASS_BG_HOVER) + ";"
-             + "-fx-text-fill: " + (on ? ACCENT : TEXT_SECONDARY) + ";"
-             + "-fx-background-radius: " + NAV_RADIUS + "; -fx-cursor: hand;";
     }
 
     /** Stat tile surface (equivalent to card; semantic alias). */

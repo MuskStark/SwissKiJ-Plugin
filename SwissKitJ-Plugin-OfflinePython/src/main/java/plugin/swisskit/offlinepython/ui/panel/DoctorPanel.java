@@ -6,7 +6,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import plugin.swisskit.offlinepython.command.DoctorService;
-import plugin.swisskit.offlinepython.ui.LogConsole;
+import plugin.swisskit.offlinepython.infra.OpbLogger;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 import plugin.swisskit.offlinepython.ui.ProjectContext;
 import plugin.swisskit.offlinepython.ui.control.PanelHeader;
@@ -14,7 +14,7 @@ import plugin.swisskit.offlinepython.ui.control.PanelHeader;
 public class DoctorPanel extends CommandPanel {
     private final GridPane grid = new GridPane();
 
-    public DoctorPanel(LogConsole log, ProjectContext project) {
+    public DoctorPanel(OpbLogger log, ProjectContext project) {
         super(log, project);
         PanelHeader header = new PanelHeader(I18n.get("opb.doctor.title"));
         Button run = UiUtils.glassBtn("▶ 运行诊断", true);

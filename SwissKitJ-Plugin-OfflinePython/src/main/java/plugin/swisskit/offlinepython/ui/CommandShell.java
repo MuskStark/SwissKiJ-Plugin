@@ -16,8 +16,8 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
+import plugin.swisskit.offlinepython.infra.OpbLogger;
 import plugin.swisskit.offlinepython.infra.PythonDetector;
-import plugin.swisskit.offlinepython.ui.control.LogDrawer;
 import plugin.swisskit.offlinepython.ui.control.ProjectSwitcher;
 import plugin.swisskit.offlinepython.ui.panel.BuildVerifyPanel;
 import plugin.swisskit.offlinepython.ui.panel.ConfigPanel;
@@ -29,19 +29,20 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * OfflinePython command shell: a 4-region layout (top bar / left nav / center
- * content / right log drawer) with a 3-item nav (config / build / doctor).
+ * OfflinePython command shell: a 3-region layout (top bar / left nav / center
+ * content) with a 3-item nav (config / build / doctor).
  *
  * <p>The top bar shows the currently-open project name (read-only). Opening a
- * project is done from the {@link ConfigPanel} empty-state. The public API
- * ({@link #getView()}, {@link #hasRunningTasks()}, lifecycle hooks and
- * {@link #refreshPython()}) is consumed by {@code OfflinePythonPlugin}.
+ * project is done from the {@link ConfigPanel} empty-state. Logs are written to
+ * a file ({@code <project>/.offline-python.log}) via {@link OpbLogger} — there
+ * is no on-screen console. The public API ({@link #getView()},
+ * {@link #hasRunningTasks()}, lifecycle hooks and {@link #refreshPython()}) is
+ * consumed by {@code OfflinePythonPlugin}.
  */
 public class CommandShell {
     private final BorderPane root = new BorderPane();
     private final VBox contentWrap = new VBox();
-    private final LogConsole logConsole = new LogConsole();
-    private final LogDrawer logDrawer = new LogDrawer(logConsole);
+    private final OpbLogger logger = new OpbLogger();
     private final Label pyBadge = new Label();
     private final ProjectContext project = new ProjectContext();
     private final ProjectSwitcher switcher = new ProjectSwitcher();
@@ -62,7 +63,6 @@ public class CommandShell {
         root.setLeft(buildNav());
         contentWrap.setStyle("-fx-background-color: transparent;");
         root.setCenter(contentWrap);
-        root.setRight(logDrawer);
         refreshPython();
         select("config");
     }
@@ -146,9 +146,9 @@ public class CommandShell {
         current = key;
         navButtons.forEach((k, b) -> applyNavStyle(b, k.equals(key), false));
         Node panel = switch (key) {
-            case "config"  -> configPanel != null ? configPanel : (configPanel = new ConfigPanel(logConsole, project, this::openExisting));
-            case "build"   -> buildVerifyPanel != null ? buildVerifyPanel : (buildVerifyPanel = new BuildVerifyPanel(logConsole, project));
-            case "doctor"  -> new DoctorPanel(logConsole, project);
+            case "config"  -> configPanel != null ? configPanel : (configPanel = new ConfigPanel(logger, project, this::openExisting));
+            case "build"   -> buildVerifyPanel != null ? buildVerifyPanel : (buildVerifyPanel = new BuildVerifyPanel(logger, project));
+            case "doctor"  -> new DoctorPanel(logger, project);
             default -> new Label("—");
         };
         contentWrap.getChildren().setAll(panel);
@@ -159,8 +159,10 @@ public class CommandShell {
         File dir = dc.showDialog(root.getScene().getWindow());
         if (dir == null) return;
         project.openExisting(dir.toPath());
+        // 日志写入项目目录下的 .offline-python.log
+        logger.setLogFile(dir.toPath().resolve(".offline-python.log"));
         switcher.updateName(dir.getName());
-        logConsole.log("已打开项目: " + dir);
+        logger.log("已打开项目: " + dir);
         // 重新加载配置页(刷新空状态 → 依赖表)
         if (configPanel != null) configPanel.reload();
     }

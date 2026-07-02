@@ -19,7 +19,7 @@ import javafx.stage.FileChooser;
 import plugin.swisskit.offlinepython.domain.DependencySpec;
 import plugin.swisskit.offlinepython.domain.PlatformCatalog;
 import plugin.swisskit.offlinepython.domain.RequirementsFile;
-import plugin.swisskit.offlinepython.ui.LogConsole;
+import plugin.swisskit.offlinepython.infra.OpbLogger;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 import plugin.swisskit.offlinepython.ui.ProjectContext;
 import plugin.swisskit.offlinepython.ui.control.EmptyState;
@@ -72,7 +72,7 @@ public class ConfigPanel extends CommandPanel {
     /** 空状态容器(无项目时显示,有项目时隐藏)。 */
     private final VBox emptyHolder = new VBox();
 
-    public ConfigPanel(LogConsole log, ProjectContext project, Runnable onOpen) {
+    public ConfigPanel(OpbLogger log, ProjectContext project, Runnable onOpen) {
         super(log, project);
         this.onOpen = onOpen;
         recursive.setSelected(true); wheelFirst.setSelected(true);

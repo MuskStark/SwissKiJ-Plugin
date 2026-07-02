@@ -26,9 +26,9 @@ import plugin.swisskit.offlinepython.domain.Status;
 import plugin.swisskit.offlinepython.domain.VerifyResult;
 import plugin.swisskit.offlinepython.domain.VerifyScope;
 import plugin.swisskit.offlinepython.infra.JsonStore;
+import plugin.swisskit.offlinepython.infra.OpbLogger;
 import plugin.swisskit.offlinepython.infra.ProcessRunner;
 import plugin.swisskit.offlinepython.task.PluginTask;
-import plugin.swisskit.offlinepython.ui.LogConsole;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 import plugin.swisskit.offlinepython.ui.ProjectContext;
 import plugin.swisskit.offlinepython.ui.control.PanelHeader;
@@ -51,7 +51,7 @@ public class BuildVerifyPanel extends CommandPanel {
     private PluginTask<BuildSummary> task;
     private ProcessRunner runner;
 
-    public BuildVerifyPanel(LogConsole log, ProjectContext project) {
+    public BuildVerifyPanel(OpbLogger log, ProjectContext project) {
         super(log, project);
         PanelHeader header = new PanelHeader(I18n.get("opb.build.title"));
         getChildren().add(header);
