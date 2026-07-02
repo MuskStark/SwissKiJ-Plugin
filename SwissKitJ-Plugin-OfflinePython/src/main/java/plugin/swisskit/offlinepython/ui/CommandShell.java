@@ -147,7 +147,11 @@ public class CommandShell {
         navButtons.forEach((k, b) -> applyNavStyle(b, k.equals(key), false));
         Node panel = switch (key) {
             case "config"  -> configPanel != null ? configPanel : (configPanel = new ConfigPanel(logger, project, this::openExisting, this::createNew, this::closeProject, () -> select("build")));
-            case "build"   -> buildVerifyPanel != null ? buildVerifyPanel : (buildVerifyPanel = new BuildVerifyPanel(logger, project));
+            case "build"   -> {
+                if (buildVerifyPanel == null) buildVerifyPanel = new BuildVerifyPanel(logger, project);
+                buildVerifyPanel.onShow();  // 每次进入都刷新依赖数/配置(可能刚在 config 页保存)
+                yield buildVerifyPanel;
+            }
             case "doctor"  -> new DoctorPanel(logger, project);
             default -> new Label("—");
         };

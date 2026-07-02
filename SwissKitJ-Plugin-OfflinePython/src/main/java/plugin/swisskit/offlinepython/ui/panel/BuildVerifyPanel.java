@@ -115,6 +115,12 @@ public class BuildVerifyPanel extends CommandPanel {
         return b;
     }
 
+    /** 每次切换到本页时调用:重新从磁盘读取依赖数/配置,刷新 banner。 */
+    public void onShow() {
+        if (project.getProjectDir() != null) project.reloadConfig();
+        refreshBanner();
+    }
+
     private VerifyScope selectedScope() {
         Toggle t = scopeGroup.getSelectedToggle();
         return t == null ? VerifyScope.ALL : (VerifyScope) t.getUserData();
