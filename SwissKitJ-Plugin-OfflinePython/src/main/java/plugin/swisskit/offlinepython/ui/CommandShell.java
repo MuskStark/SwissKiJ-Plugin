@@ -90,7 +90,7 @@ public class CommandShell {
         nav.setStyle("-fx-background-color: " + OpbStyle.GLASS_BG_SOFT + ";"
                 + " -fx-border-color: transparent " + OpbStyle.GLASS_BORDER + " transparent transparent;"
                 + " -fx-border-width: 0 1 0 0;");
-        navEntry(nav, "config",  "package-variant-closed", true);
+        navEntry(nav, "config",  "package-variant-closed", false);
         navEntry(nav, "build",   "hammer-wrench", false);
         navEntry(nav, "deploy",  "download", false);
         navEntry(nav, "doctor",  "stethoscope", false);
