@@ -40,11 +40,13 @@ public final class OpbStyle {
     public static final String BG_SELECTED     = "-sk-bg-selected";
     public static final String LOG_INNER_BG    = "-sk-bg";
 
-    public static final int CARD_RADIUS   = 12;
-    public static final int NAV_RADIUS    = 8;
-    public static final int SIDEBAR_WIDTH = 220;
+    public static final int CARD_RADIUS   = 8;   // 规范 §3.4:卡片/表格 8px(原 12 越界)
+    public static final int NAV_RADIUS    = 6;   // 规范 §3.4:控件 6px(原 8)
+    public static final int SIDEBAR_WIDTH      = 200;   // 原 220,4 倍数
+    public static final int LOG_DRAWER_WIDTH   = 240;
+    public static final int LOG_DRAWER_COLLAPSED_WIDTH = 40;
 
-    /** Glass card surface: elevated fill + hairline border + 12px radius. */
+    /** Glass card surface: elevated fill + hairline border + 8px radius. */
     public static String card() {
         return "-fx-background-color: " + GLASS_BG + ";"
              + "-fx-background-radius: " + CARD_RADIUS + ";"
@@ -52,14 +54,23 @@ public final class OpbStyle {
              + "-fx-border-radius: " + CARD_RADIUS + ";";
     }
 
-    /** Nav item style for the given selection/hover state. */
+    /**
+     * Nav item style per spec S1: idle = transparent + secondary text;
+     * hover = -sk-bg-hover + -sk-text; selected = neutral -sk-bg-selected fill
+     * + 3px LEFT -sk-accent border + -sk-text text. Never blue-flood.
+     */
     public static String navItem(boolean selected, boolean hover) {
-        String bg = selected ? ACCENT_SOFT : (hover ? GLASS_BG_HOVER : "transparent");
-        String fg = selected ? ACCENT : TEXT_SECONDARY;
+        String bg = selected ? BG_SELECTED : (hover ? GLASS_BG_HOVER : "transparent");
+        String fg = selected ? TEXT_PRIMARY : (hover ? TEXT_PRIMARY : TEXT_SECONDARY);
+        String border = selected
+                ? "-fx-border-color: transparent transparent transparent " + ACCENT + ";"
+                  + " -fx-border-width: 0 0 0 3;"
+                : "-fx-border-color: transparent; -fx-border-width: 0;";
         return "-fx-background-color: " + bg + ";"
-             + "-fx-text-fill: " + fg + ";"
-             + "-fx-background-radius: " + NAV_RADIUS + ";"
-             + "-fx-cursor: hand;";
+             + " -fx-text-fill: " + fg + ";"
+             + " " + border
+             + " -fx-background-radius: " + NAV_RADIUS + ";"
+             + " -fx-cursor: hand;";
     }
 
     /** Python badge capsule style; green when ok, red when missing. */
@@ -101,7 +112,7 @@ public final class OpbStyle {
     /** Small count badge (deps 角标). */
     public static String countBadge() {
         return "-fx-background-color: " + ACCENT + "; -fx-text-fill: white;"
-             + " -fx-background-radius: 9; -fx-padding: 0 7 0 7; -fx-font-size: 10px;";
+             + " -fx-background-radius: 6; -fx-padding: 0 6 0 6; -fx-font-size: 10px;";
     }
 
     /** Section-header title (for panel headers). */
@@ -126,5 +137,66 @@ public final class OpbStyle {
     /** Table header label style: secondary, 11px, bold. */
     public static String tableHeaderStyle() {
         return "-fx-text-fill: " + TEXT_SECONDARY + "; -fx-font-size: 11px; -fx-font-weight: bold;";
+    }
+
+    /** TopBar container: base bg + bottom 1px border + 8/16 padding(网格). */
+    public static String topBar() {
+        return "-fx-background-color: " + GLASS_BG_SOFT + ";"
+             + "-fx-border-color: transparent transparent " + GLASS_BORDER + " transparent;"
+             + "-fx-border-width: 0 0 1 0;";
+    }
+
+    /** Project switcher (MenuButton) control style. */
+    public static String projectSwitcher() {
+        return "-fx-background-color: " + GLASS_BG_HOVER + ";"
+             + "-fx-text-fill: " + TEXT_PRIMARY + ";"
+             + "-fx-border-color: " + GLASS_BORDER + ";"
+             + "-fx-background-radius: " + NAV_RADIUS + "; -fx-border-radius: " + NAV_RADIUS + ";"
+             + "-fx-cursor: hand;";
+    }
+
+    /** Nav item icon fill color: secondary when idle, primary when active. */
+    public static String navItemIconColor(boolean active) {
+        return active ? TEXT_PRIMARY : TEXT_SECONDARY;
+    }
+
+    /** LogDrawer container (expanded): base bg + left 1px border. */
+    public static String logDrawerStyle() {
+        return "-fx-background-color: " + GLASS_BG_SOFT + ";"
+             + "-fx-border-color: transparent transparent transparent " + GLASS_BORDER + ";"
+             + "-fx-border-width: 0 0 0 1;";
+    }
+
+    /** LogDrawer collapsed state: narrower, no content. */
+    public static String logDrawerCollapsedStyle() {
+        return logDrawerStyle();
+    }
+
+    /** Log level filter pill: accent-soft when on, hover-tier when off. */
+    public static String logPillStyle(boolean on) {
+        return "-fx-background-color: " + (on ? ACCENT_SOFT : GLASS_BG_HOVER) + ";"
+             + "-fx-text-fill: " + (on ? ACCENT : TEXT_SECONDARY) + ";"
+             + "-fx-background-radius: " + NAV_RADIUS + "; -fx-cursor: hand;";
+    }
+
+    /** Stat tile surface (equivalent to card; semantic alias). */
+    public static String statTile() {
+        return "-fx-background-color: " + GLASS_BG_SOFT + ";"
+             + "-fx-border-color: " + GLASS_BORDER + ";"
+             + "-fx-background-radius: " + CARD_RADIUS + "; -fx-border-radius: " + CARD_RADIUS + ";"
+             + "-fx-alignment: center;";
+    }
+
+    /** Segmented control item style. */
+    public static String segStyle(boolean selected) {
+        return "-fx-background-color: " + (selected ? BG_SELECTED : "transparent") + ";"
+             + "-fx-text-fill: " + (selected ? TEXT_PRIMARY : TEXT_SECONDARY) + ";"
+             + "-fx-background-radius: " + NAV_RADIUS + "; -fx-cursor: hand;";
+    }
+
+    /** Section sub-title (e.g. 构建/校验 within merged page). */
+    public static String subSectionTitle() {
+        return "-fx-text-fill: " + TEXT_SECONDARY + "; -fx-font-size: 11px; -fx-font-weight: bold;"
+             + " -fx-label-padding: 0 0 8 0;";
     }
 }

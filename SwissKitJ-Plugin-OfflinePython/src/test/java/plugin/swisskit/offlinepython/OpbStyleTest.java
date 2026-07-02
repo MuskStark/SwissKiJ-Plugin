@@ -24,14 +24,20 @@ class OpbStyleTest {
         String s = OpbStyle.card();
         assertTrue(s.contains(OpbStyle.GLASS_BG));
         assertTrue(s.contains(OpbStyle.GLASS_BORDER));
+        assertEquals(8, OpbStyle.CARD_RADIUS);
         assertTrue(s.contains(String.valueOf(OpbStyle.CARD_RADIUS)));
     }
 
     @Test
-    void navItemSelectedUsesAccent() {
+    void navItemSelectedUsesNeutralFillAndLeftAccentStrip() {
         String sel = OpbStyle.navItem(true, false);
-        assertTrue(sel.contains(OpbStyle.ACCENT_SOFT));
-        assertTrue(sel.contains(OpbStyle.ACCENT));
+        // 规范 S1:选中态 = 中性 -sk-bg-selected 填充 + 左 3px -sk-accent border + -sk-text 文字
+        assertTrue(sel.contains(OpbStyle.BG_SELECTED), "选中态背景须为中性 -sk-bg-selected");
+        assertTrue(sel.contains(OpbStyle.ACCENT), "须含 -sk-accent(左侧条)");
+        assertTrue(sel.contains(OpbStyle.TEXT_PRIMARY), "选中文字须升至 -sk-text");
+        assertTrue(sel.contains("-fx-border-width"), "须有 border-width 实现左侧条");
+        assertTrue(sel.contains("0 0 0 3"), "3px 必须在左侧 (TRBL)");
+        assertFalse(sel.contains(OpbStyle.ACCENT_SOFT), "禁止蓝填充(规范反模式)");
     }
 
     @Test
@@ -76,5 +82,21 @@ class OpbStyleTest {
         assertTrue(s.contains(OpbStyle.TEXT_SECONDARY));
         assertTrue(s.contains("11px"));
         assertTrue(s.contains("bold"));
+    }
+
+    @Test
+    void newLayoutHelpersUseTokensNotHex() {
+        assertTrue(OpbStyle.topBar().contains(OpbStyle.GLASS_BORDER));
+        assertTrue(OpbStyle.projectSwitcher().contains(OpbStyle.GLASS_BG_HOVER));
+        assertTrue(OpbStyle.logPillStyle(true).contains(OpbStyle.ACCENT_SOFT));
+        assertTrue(OpbStyle.logPillStyle(false).contains(OpbStyle.GLASS_BG_HOVER));
+        assertTrue(OpbStyle.segStyle(true).contains(OpbStyle.BG_SELECTED));
+        assertTrue(OpbStyle.statTile().contains(OpbStyle.GLASS_BORDER));
+    }
+
+    @Test
+    void drawerWidthsAreGridAligned() {
+        assertEquals(240, OpbStyle.LOG_DRAWER_WIDTH);
+        assertEquals(40, OpbStyle.LOG_DRAWER_COLLAPSED_WIDTH);
     }
 }
