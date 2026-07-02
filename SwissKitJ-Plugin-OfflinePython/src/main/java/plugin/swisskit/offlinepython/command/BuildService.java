@@ -30,7 +30,9 @@ public class BuildService {
             Path projectDir, BuildConfig cfg, String pythonExecutable,
             Consumer<String> onLog, ProcessRunner runner) throws Exception {
         Path output = projectDir.resolve(cfg.getRepository().getOutput());
-        Path wheelhouse = output.resolve(cfg.getRepository().getWheelDir());
+        // wheel 按目标 Python 版本分子目录存放:wheelhouse/<pythonVersion>/
+        Path wheelhouse = output.resolve(cfg.getRepository().getWheelDir())
+                .resolve(cfg.getPython().getVersion());
         Files.createDirectories(wheelhouse);
 
         int preExisting = countWheels(wheelhouse);

@@ -10,6 +10,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.ComboBox;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -45,6 +46,7 @@ public class BuildVerifyPanel extends CommandPanel {
     private final Button build;
     private final Label banner = new Label();
     private final GridPane tiles = new GridPane();
+    private final ComboBox<String> pyVersionCombo = new ComboBox<>();
     private final ToggleGroup scopeGroup = new ToggleGroup();
     private final VBox report = new VBox(6);
     private final Label conclusion = new Label();
@@ -67,10 +69,20 @@ public class BuildVerifyPanel extends CommandPanel {
                 + "; -fx-background-radius: 6; -fx-padding: 8 12 8 12; -fx-font-size: 12px;");
         buildSection.getChildren().add(banner);
 
+        // 目标 Python 版本选择
+        pyVersionCombo.getItems().addAll("3.8.10", "3.9.13", "3.10.11", "3.11.9", "3.12.10", "3.13.1");
+        pyVersionCombo.setStyle(UiUtils.comboStyle());
+        Label pyLabel = UiUtils.subLabel("目标 Python");
+        HBox pyRow = new HBox(8, pyLabel, pyVersionCombo);
+        pyRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        buildSection.getChildren().add(pyRow);
+
         build = UiUtils.glassBtn("▶ 构建", true);
         Button cancel = UiUtils.glassBtn("✕ 取消", false);
-        progress.setProgress(-1);
+        // 未构建时进度条不动画(0%);构建中显示实际进度
+        progress.setProgress(0);
         progress.setPrefHeight(6);
+        progress.setMaxWidth(Double.MAX_VALUE);
         build.setOnAction(e -> start());
         cancel.setOnAction(e -> { if (runner != null) runner.cancel(); });
         HBox buildRow = new HBox(8, build, cancel, progress);
@@ -131,9 +143,11 @@ public class BuildVerifyPanel extends CommandPanel {
         long depCount = countDeps(dir);
         String plat = project.getConfig() != null && project.getConfig().getPython() != null
                 ? project.getConfig().getPython().getPrimaryPlatform() : "?";
-        banner.setText("📋 当前依赖:" + depCount + " 个直接  ·  目标 " + plat
-                + (project.getConfig() != null && project.getConfig().getPython() != null
-                    ? "  ·  Python " + project.getConfig().getPython().getVersion() : ""));
+        String ver = project.getConfig() != null && project.getConfig().getPython() != null
+                ? project.getConfig().getPython().getVersion() : "3.12.10";
+        // 同步 Python 版本选择器
+        if (pyVersionCombo.getValue() == null) pyVersionCombo.setValue(ver);
+        banner.setText("📋 当前依赖:" + depCount + " 个直接  ·  目标 " + plat + "  ·  Python " + ver);
     }
 
     private long countDeps(Path dir) {
@@ -150,14 +164,23 @@ public class BuildVerifyPanel extends CommandPanel {
         if (isRunning()) return;
         Path dir = project.getProjectDir();
         if (dir == null) { GlassNotification.toast(this, GlassNotification.Type.WARNING, "先打开或新建项目"); return; }
+        // 把选中的 Python 版本写回 config(影响 pip --python-version + wheelhouse 路径)
+        String pyVer = pyVersionCombo.getValue();
+        if (pyVer != null && !pyVer.isBlank() && project.getConfig() != null) {
+            project.getConfig().getPython().setVersion(pyVer);
+            project.saveConfig();
+        }
         build.setDisable(true);
+        progress.setProgress(0);
+        progress.getStyleClass().removeAll("success", "danger");
         runner = new ProcessRunner();
         task = new PluginTask<>() {
             @Override protected BuildSummary call() throws Exception {
                 BuildConfig cfg = JsonStore.load(dir.resolve("config.json"), BuildConfig.class);
                 var det = plugin.swisskit.offlinepython.infra.PythonDetector.detect(cfg.getPython().getExecutable());
                 if (!det.ok()) throw new IllegalStateException("未检测到 Python — 请先安装");
-                return new BuildService().build(dir, cfg, det.executable(), log::log, runner);
+                return new BuildService().build(dir, cfg, det.executable(),
+                        line -> { log.log(line); updateProgressApprox(); }, runner);
             }
         };
         task.setOnSucceeded(e -> Platform.runLater(() -> {
@@ -167,7 +190,6 @@ public class BuildVerifyPanel extends CommandPanel {
                     + " · 耗时 " + (s.durationMs() / 1000) + "s · 缓存命中 " + s.cacheHits());
             GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "构建完成");
             progress.setProgress(1);
-            progress.getStyleClass().removeAll("success", "danger");
             progress.getStyleClass().add("success");
             build.setDisable(false);
         }));
@@ -175,13 +197,21 @@ public class BuildVerifyPanel extends CommandPanel {
             log.log("ERROR: " + task.getException().getMessage());
             GlassNotification.toast(this, GlassNotification.Type.ERROR, "构建失败");
             progress.setProgress(0);
-            progress.getStyleClass().removeAll("success", "danger");
             progress.getStyleClass().add("danger");
             build.setDisable(false);
         }));
         Thread t = new Thread(task, "OfflinePython-Build");
         t.setDaemon(true);
         t.start();
+    }
+
+    /** 构建中粗略推进进度条(每个 pip 日志行推进一点,封顶 95%)。 */
+    private void updateProgressApprox() {
+        javafx.application.Platform.runLater(() -> {
+            double cur = progress.getProgress();
+            if (cur < 0) cur = 0;
+            if (cur < 0.95) progress.setProgress(cur + 0.03);
+        });
     }
 
     private void renderTiles(BuildSummary s) {
