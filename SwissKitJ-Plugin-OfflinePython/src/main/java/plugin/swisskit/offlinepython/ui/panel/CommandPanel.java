@@ -1,6 +1,7 @@
 package plugin.swisskit.offlinepython.ui.panel;
 
 import fan.summer.api.component.UiUtils;
+import fan.summer.api.host.PluginHost;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import plugin.swisskit.offlinepython.infra.OpbLogger;
@@ -11,10 +12,12 @@ import plugin.swisskit.offlinepython.ui.ProjectContext;
 public abstract class CommandPanel extends VBox {
     protected final OpbLogger log;
     protected final ProjectContext project;
+    protected final PluginHost host;
 
-    protected CommandPanel(OpbLogger log, ProjectContext project) {
+    protected CommandPanel(OpbLogger log, ProjectContext project, PluginHost host) {
         this.log = log;
         this.project = project;
+        this.host = host;
         setSpacing(14);
         setStyle(OpbStyle.card() + " -fx-padding: 18;");
     }

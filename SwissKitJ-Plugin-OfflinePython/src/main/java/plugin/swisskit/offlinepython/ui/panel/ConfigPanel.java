@@ -1,9 +1,9 @@
 package plugin.swisskit.offlinepython.ui.panel;
 
 import fan.summer.api.MdiIconUtil;
-import fan.summer.api.component.GlassNotification;
+import fan.summer.api.component.SkNotification;
 import fan.summer.api.component.UiUtils;
-import fan.summer.api.i18n.I18n;
+import fan.summer.api.host.PluginHost;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -66,8 +66,8 @@ public class ConfigPanel extends CommandPanel {
     /** 无项目时的居中按钮容器(无项目时显示,有项目时隐藏)。 */
     private final VBox emptyHolder = new VBox();
 
-    public ConfigPanel(OpbLogger log, ProjectContext project, Runnable onOpen, Runnable onNew, Runnable onClose, Runnable onBuild) {
-        super(log, project);
+    public ConfigPanel(OpbLogger log, ProjectContext project, PluginHost host, Runnable onOpen, Runnable onNew, Runnable onClose, Runnable onBuild) {
+        super(log, project, host);
         this.onOpen = onOpen;
         this.onNew = onNew;
         this.onClose = onClose;
@@ -103,9 +103,9 @@ public class ConfigPanel extends CommandPanel {
 
     /** 无项目时:居中显示「新建项目」「打开项目」两个按钮。 */
     private void buildEmptyState() {
-        Button newBtn = UiUtils.glassBtn(I18n.get("opb.project.new"), true);
+        Button newBtn = UiUtils.glassBtn(host.i18n().get("opb.project.new"), true);
         newBtn.setOnAction(e -> { if (onNew != null) onNew.run(); });
-        Button openBtn = UiUtils.glassBtn(I18n.get("opb.project.open"), false);
+        Button openBtn = UiUtils.glassBtn(host.i18n().get("opb.project.open"), false);
         openBtn.setOnAction(e -> { if (onOpen != null) onOpen.run(); });
         HBox actions = new HBox(12, newBtn, openBtn);
         actions.setAlignment(javafx.geometry.Pos.CENTER);
@@ -115,7 +115,7 @@ public class ConfigPanel extends CommandPanel {
 
     @SuppressWarnings("unchecked")
     private void buildUi() {
-        PanelHeader header = new PanelHeader(I18n.get("opb.deps.title"));
+        PanelHeader header = new PanelHeader(host.i18n().get("opb.deps.title"));
         // 后退按钮:关闭当前项目,返回新建/打开项目界面
         Button back = UiUtils.glassBtn("← 后退", false);
         back.setTooltip(new Tooltip("返回新建或打开项目界面"));
@@ -262,19 +262,19 @@ public class ConfigPanel extends CommandPanel {
 
     /** 增加依赖:弹窗填写包名/版本/平台(支持在线搜索),确认后加入表格。 */
     private void addDep() {
-        AddDepDialog dlg = new AddDepDialog(getScene().getWindow());
+        AddDepDialog dlg = new AddDepDialog(getScene().getWindow(), host);
         dlg.showAndWait().ifPresent(r -> {
             Row nr = new Row(r.name(), r.version(), r.platforms());
             table.getItems().add(nr);
             table.refresh();
             refreshSummary();
-            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已添加依赖: " + r.name());
+            host.notifications().toast(this, SkNotification.Type.SUCCESS, "已添加依赖: " + r.name());
         });
     }
 
     /** 编辑依赖:双击行触发,弹窗预填该行内容,确认后原地更新。 */
     private void editDep(Row row) {
-        AddDepDialog dlg = new AddDepDialog(getScene().getWindow(),
+        AddDepDialog dlg = new AddDepDialog(getScene().getWindow(), host,
                 row.name.get(), row.version.get(), row.platforms);
         dlg.showAndWait().ifPresent(r -> {
             row.name.set(r.name());
@@ -283,21 +283,21 @@ public class ConfigPanel extends CommandPanel {
             row.platforms.addAll(r.platforms());
             table.refresh();
             refreshSummary();
-            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已更新依赖: " + r.name());
+            host.notifications().toast(this, SkNotification.Type.SUCCESS, "已更新依赖: " + r.name());
         });
     }
 
     /** 保存配置:持久化当前依赖表 + 下载选项到项目。 */
     private void saveConfig() {
         Path dir = project.getProjectDir();
-        if (dir == null) { GlassNotification.toast(this, GlassNotification.Type.WARNING, "先打开或新建项目"); return; }
+        if (dir == null) { host.notifications().toast(this, SkNotification.Type.WARNING, "先打开或新建项目"); return; }
         try {
             persist(dir);
-            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已保存配置");
+            host.notifications().toast(this, SkNotification.Type.SUCCESS, "已保存配置");
             log.log("已保存 " + table.getItems().size() + " 条依赖");
         } catch (Exception e) {
             log.log("保存失败: " + e.getMessage());
-            GlassNotification.toast(this, GlassNotification.Type.ERROR, "保存失败");
+            host.notifications().toast(this, SkNotification.Type.ERROR, "保存失败");
         }
     }
 
@@ -332,5 +332,5 @@ public class ConfigPanel extends CommandPanel {
         return String.format("%.1f MB", bytes / (1024.0 * 1024));
     }
 
-    @Override public String title() { return I18n.get("opb.deps.title"); }
+    @Override public String title() { return host.i18n().get("opb.deps.title"); }
 }

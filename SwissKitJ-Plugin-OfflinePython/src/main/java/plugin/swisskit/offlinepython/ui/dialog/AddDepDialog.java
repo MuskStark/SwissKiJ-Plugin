@@ -1,6 +1,8 @@
 package plugin.swisskit.offlinepython.ui.dialog;
 
+import fan.summer.api.component.SkNotification;
 import fan.summer.api.component.UiUtils;
+import fan.summer.api.host.PluginHost;
 import fan.summer.api.theme.Themes;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -27,6 +29,7 @@ import java.util.Optional;
 public class AddDepDialog {
 
     private final Stage stage = new Stage();
+    private final PluginHost host;
     private final javafx.scene.control.TextField nameField = new TextField();
     private final javafx.scene.control.TextField versionField = new TextField();
     private final PlatformMultiSelect platformSelect = new PlatformMultiSelect();
@@ -35,11 +38,27 @@ public class AddDepDialog {
     /** 对话框返回值(包名/版本/平台列表)。 */
     public record Result(String name, String version, List<String> platforms) {}
 
-    public AddDepDialog(Window owner) {
+    public AddDepDialog(Window owner, PluginHost host) {
+        this(owner, host, null, null, null);
+    }
+
+    /**
+     * 编辑模式:传入初始值(name 非空即视为编辑),对话框标题改为「编辑依赖」并预填字段。
+     */
+    public AddDepDialog(Window owner, PluginHost host, String initialName, String initialVersion, List<String> initialPlatforms) {
+        this.host = host;
         stage.initOwner(owner);
         stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setTitle("增加依赖");
+        boolean edit = initialName != null && !initialName.isBlank();
+        stage.setTitle(edit ? "编辑依赖" : "增加依赖");
         buildUi();
+        if (edit) {
+            nameField.setText(initialName);
+            versionField.setText(initialVersion == null ? "" : initialVersion);
+            if (initialPlatforms != null && !initialPlatforms.isEmpty()) {
+                platformSelect.setSelected(initialPlatforms);
+            }
+        }
     }
 
     private void buildUi() {
@@ -55,7 +74,7 @@ public class AddDepDialog {
         // 在线搜索:从 PyPI 搜索 wheel,回填版本+平台
         Button search = UiUtils.glassBtn("🔍 在线搜索", false);
         search.setOnAction(e -> {
-            PyPISearchDialog pyDlg = new PyPISearchDialog(stage);
+            PyPISearchDialog pyDlg = new PyPISearchDialog(stage, host);
             pyDlg.showAndWait().ifPresent(w -> {
                 nameField.setText(pyDlg.packageName());
                 versionField.setText("==" + w.version());
@@ -70,8 +89,8 @@ public class AddDepDialog {
         ok.setOnAction(e -> {
             String n = nameField.getText().trim();
             if (n.isBlank()) {
-                fan.summer.api.component.GlassNotification.toast(stage.getScene().getRoot(),
-                        fan.summer.api.component.GlassNotification.Type.WARNING, "请输入包名");
+                host.notifications().toast(stage.getScene().getRoot(),
+                        SkNotification.Type.WARNING, "请输入包名");
                 return;
             }
             result = new Result(n, versionField.getText().trim(), platformSelect.getSelected());

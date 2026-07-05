@@ -1,9 +1,9 @@
 package plugin.swisskit.offlinepython.ui.dialog;
 
-import fan.summer.api.component.GlassNotification;
+import fan.summer.api.component.SkNotification;
 import fan.summer.api.component.UiUtils;
+import fan.summer.api.host.PluginHost;
 import fan.summer.api.theme.Themes;
-import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -27,13 +27,15 @@ import java.util.Optional;
 public class PyPISearchDialog {
 
     private final DepsService deps = new DepsService();
+    private final PluginHost host;
     private final Stage stage = new Stage();
     private final TextField query = new TextField();
     private final TableView<WheelInfo> table = new TableView<>();
     private final Button search = UiUtils.glassBtn("搜索", false);
     private WheelInfo chosen;
 
-    public PyPISearchDialog(Window owner) {
+    public PyPISearchDialog(Window owner, PluginHost host) {
+        this.host = host;
         stage.initOwner(owner);
         stage.initModality(Modality.APPLICATION_MODAL);
         stage.setTitle("PyPI 在线搜索");
@@ -84,26 +86,30 @@ public class PyPISearchDialog {
     private void doSearch() {
         String pkg = query.getText().trim();
         if (pkg.isBlank()) {
-            GlassNotification.toast(table, GlassNotification.Type.WARNING, "请输入包名");
+            host.notifications().toast(table, SkNotification.Type.WARNING, "请输入包名");
             return;
         }
         search.setDisable(true);   // 期间按钮置灰，避免并发搜索（spec §4.D）
         query.setDisable(true);
         table.setPlaceholder(new Label("查询中…"));
         table.getItems().clear();
-        new Thread(() -> {
-            List<WheelInfo> result = deps.searchWheels(pkg);
-            Platform.runLater(() -> {
+        host.tasks().submit("opb-pypi-search",
+            () -> deps.searchWheels(pkg),
+            result -> {  // FX thread
                 search.setDisable(false);
                 query.setDisable(false);
                 if (result.isEmpty()) {
                     table.setPlaceholder(new Label("未找到 wheel（包名不存在或无 wheel）"));
-                    GlassNotification.toast(table, GlassNotification.Type.WARNING, "未找到 wheel");
+                    host.notifications().toast(table, SkNotification.Type.WARNING, "未找到 wheel");
                 } else {
                     table.getItems().setAll(result);
                 }
+            },
+            error -> {  // FX thread
+                search.setDisable(false);
+                query.setDisable(false);
+                host.notifications().toast(table, SkNotification.Type.ERROR, "搜索失败: " + error.getMessage());
             });
-        }, "opb-pypi-search").start();
     }
 
     /** The package name the user searched for (trimmed query). */

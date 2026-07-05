@@ -3,14 +3,20 @@ package plugin.swisskit.keepawake;
 import fan.summer.api.IconStyle;
 import fan.summer.api.SwissKitJPlugin;
 import fan.summer.api.ToolCategory;
-import fan.summer.api.i18n.I18n;
+import fan.summer.api.host.PluginHost;
 import javafx.scene.Node;
 import plugin.swisskit.keepawake.service.KeepAwakeService;
 import plugin.swisskit.keepawake.ui.KeepAwakeUi;
 
 public class KeepAwakePlugin implements SwissKitJPlugin {
 
+    private PluginHost host;
     private KeepAwakeUi ui;
+
+    @Override
+    public void init(PluginHost host) {
+        this.host = host;
+    }
 
     @Override
     public String getId() {
@@ -19,12 +25,12 @@ public class KeepAwakePlugin implements SwissKitJPlugin {
 
     @Override
     public String getName() {
-        return I18n.get("plugin.keepawake.name");
+        return host.i18n().get("plugin.keepawake.name");
     }
 
     @Override
     public String getDescription() {
-        return I18n.get("plugin.keepawake.desc");
+        return host.i18n().get("plugin.keepawake.desc");
     }
 
     @Override
@@ -49,8 +55,8 @@ public class KeepAwakePlugin implements SwissKitJPlugin {
 
     @Override
     public Node createView() {
-        I18n.registerPluginBundle("i18n.messages", getClass().getClassLoader());
-        ui = new KeepAwakeUi();
+        host.i18n().registerBundle("i18n.messages");
+        ui = new KeepAwakeUi(host);
         return ui.getView();
     }
 

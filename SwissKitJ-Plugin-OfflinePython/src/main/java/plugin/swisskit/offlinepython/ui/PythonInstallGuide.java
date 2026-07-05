@@ -1,8 +1,8 @@
 package plugin.swisskit.offlinepython.ui;
 
-import fan.summer.api.component.GlassNotification;
+import fan.summer.api.component.SkNotification;
 import fan.summer.api.component.UiUtils;
-import fan.summer.api.i18n.I18n;
+import fan.summer.api.host.PluginHost;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -18,11 +18,14 @@ import java.io.File;
 import java.net.URI;
 
 public class PythonInstallGuide extends VBox {
-    public PythonInstallGuide(Runnable onRedetect) {
+    private final PluginHost host;
+
+    public PythonInstallGuide(PluginHost host, Runnable onRedetect) {
+        this.host = host;
         setSpacing(10);
         setStyle(OpbStyle.card() + " -fx-padding: 20;");
 
-        Label warn = new Label("⚠ " + I18n.get("opb.python.missing"));
+        Label warn = new Label("⚠ " + host.i18n().get("opb.python.missing"));
         warn.setStyle("-fx-text-fill: " + OpbStyle.WARNING + "; -fx-font-size: 15px; -fx-font-weight: 500;");
         getChildren().add(warn);
         getChildren().add(UiUtils.subLabel("本插件需要 Python ≥ 3.10 + pip。"));
@@ -53,7 +56,7 @@ public class PythonInstallGuide extends VBox {
         copy.setOnAction(e -> {
             ClipboardContent c = new ClipboardContent(); c.putString(cmd);
             Clipboard.getSystemClipboard().setContent(c);
-            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已复制: " + cmd);
+            host.notifications().toast(this, SkNotification.Type.SUCCESS, "已复制: " + cmd);
         });
         HBox row = new HBox(8, l, field, copy);
         row.setAlignment(Pos.CENTER_LEFT);
@@ -68,7 +71,7 @@ public class PythonInstallGuide extends VBox {
         Button open = UiUtils.glassBtn("打开浏览器", false);
         open.setOnAction(e -> {
             try { Desktop.getDesktop().browse(new URI(url)); }
-            catch (Exception ex) { GlassNotification.toast(this, GlassNotification.Type.ERROR, "无法打开浏览器"); }
+            catch (Exception ex) { host.notifications().toast(this, SkNotification.Type.ERROR, "无法打开浏览器"); }
         });
         HBox row = new HBox(8, l, field, open);
         row.setAlignment(Pos.CENTER_LEFT);
@@ -80,6 +83,6 @@ public class PythonInstallGuide extends VBox {
         // Best-effort: write to the user config dir's config.json if a project is open; else just re-detect.
         // (ProjectContext not available here; the shell re-detects after this.)
         onRedetect.run();
-        GlassNotification.toast(this, GlassNotification.Type.INFO, "已记录路径，重新检测中");
+        host.notifications().toast(this, SkNotification.Type.INFO, "已记录路径，重新检测中");
     }
 }

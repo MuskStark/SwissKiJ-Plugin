@@ -1,6 +1,5 @@
 package plugin.swisskit.offlinepython.infra;
 
-import fan.summer.api.log.LoggerFactory;
 import fan.summer.api.log.PluginLogger;
 
 import java.io.IOException;
@@ -21,7 +20,15 @@ import java.nio.file.NoSuchFileException;
 public class OpbLogger {
 
     private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("HH:mm:ss");
-    private final PluginLogger hostLog = LoggerFactory.getLogger("OfflinePython");
+    private final PluginLogger hostLog;
+
+    /**
+     * @param hostLog the host-supplied logger (from {@code host.logger(...)}); routes
+     *                log lines into the host logging backbone (IDE console/terminal).
+     */
+    public OpbLogger(PluginLogger hostLog) {
+        this.hostLog = hostLog;
+    }
 
     /** 当前日志文件路径;null 时只走宿主 logger(项目未打开时)。 */
     private volatile Path logFile;

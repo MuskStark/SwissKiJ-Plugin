@@ -1,8 +1,8 @@
 package plugin.swisskit.offlinepython.ui.panel;
 
-import fan.summer.api.component.GlassNotification;
+import fan.summer.api.component.SkNotification;
 import fan.summer.api.component.UiUtils;
-import fan.summer.api.i18n.I18n;
+import fan.summer.api.host.PluginHost;
 import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -27,7 +27,6 @@ import plugin.swisskit.offlinepython.domain.PlatformMatcher;
 import plugin.swisskit.offlinepython.domain.WheelEntry;
 import plugin.swisskit.offlinepython.infra.OpbLogger;
 import plugin.swisskit.offlinepython.infra.PythonDetector;
-import plugin.swisskit.offlinepython.task.PluginTask;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 import plugin.swisskit.offlinepython.ui.control.PanelHeader;
 
@@ -43,10 +42,10 @@ public class DeployPanel extends CommandPanel {
     private final TableView<WheelEntry> matchTable = new TableView<>();
     private final Label envLabel = new Label();
     private final Label summary = new Label();
-    private final RadioButton rbGlobal = new RadioButton(I18n.get("opb.deploy.targetGlobal"));
-    private final RadioButton rbVenv = new RadioButton(I18n.get("opb.deploy.targetVenv"));
+    private final RadioButton rbGlobal = new RadioButton(host.i18n().get("opb.deploy.targetGlobal"));
+    private final RadioButton rbVenv = new RadioButton(host.i18n().get("opb.deploy.targetVenv"));
     private final TextField venvPath = new TextField();
-    private final Button installBtn = UiUtils.glassBtn(I18n.get("opb.deploy.install"), true);
+    private final Button installBtn = UiUtils.glassBtn(host.i18n().get("opb.deploy.install"), true);
     private final ProgressBar progress = new ProgressBar(0);
     private final TextArea logArea = new TextArea();
     private final VBox previewBox = new VBox(6);
@@ -56,17 +55,17 @@ public class DeployPanel extends CommandPanel {
     private PythonDetector.Detection detection;
     private List<WheelEntry> matchedWheels = List.of();
 
-    public DeployPanel(OpbLogger log) {
-        super(log, null);  // no project context needed
+    public DeployPanel(OpbLogger log, PluginHost host) {
+        super(log, null, host);  // no project context needed
         buildUi();
         detectEnv();
     }
 
     private void buildUi() {
-        PanelHeader header = new PanelHeader(I18n.get("opb.deploy.title"));
+        PanelHeader header = new PanelHeader(host.i18n().get("opb.deploy.title"));
 
         // ① 选包
-        Button choose = UiUtils.glassBtn(I18n.get("opb.deploy.selectZip"), false);
+        Button choose = UiUtils.glassBtn(host.i18n().get("opb.deploy.selectZip"), false);
         choose.setOnAction(e -> chooseZip());
         envLabel.setStyle("-fx-text-fill: " + OpbStyle.TEXT_SECONDARY + "; -fx-padding: 4 0;");
         VBox selectBox = new VBox(8, choose, envLabel);
@@ -145,7 +144,7 @@ public class DeployPanel extends CommandPanel {
                     + " · Python " + detection.pythonVersion()
                     + "  @ " + detection.executable());
         } else {
-            envLabel.setText(I18n.get("opb.deploy.noPython"));
+            envLabel.setText(host.i18n().get("opb.deploy.noPython"));
             installBtn.setDisable(true);
         }
     }
@@ -159,7 +158,7 @@ public class DeployPanel extends CommandPanel {
             selectedZip = f.toPath();
             BundleReader.Bundle b = BundleReader.read(selectedZip);
             PythonDetector.Detection det = PythonDetector.detect(null);
-            if (!det.ok()) { GlassNotification.toast(this, GlassNotification.Type.WARNING, I18n.get("opb.deploy.noPython")); return; }
+            if (!det.ok()) { host.notifications().toast(this, SkNotification.Type.WARNING, host.i18n().get("opb.deploy.noPython")); return; }
             PlatformMatcher.HostTags host = PlatformMatcher.detectHost(det.pythonVersion());
             matchedWheels = PlatformMatcher.match(host, b.wheels());
             matchTable.getItems().setAll(matchedWheels);
@@ -169,7 +168,7 @@ public class DeployPanel extends CommandPanel {
             previewBox.setVisible(true); previewBox.setManaged(true);
             targetBox.setVisible(true); targetBox.setManaged(true);
         } catch (Exception ex) {
-            GlassNotification.toast(this, GlassNotification.Type.ERROR, I18n.get("opb.deploy.invalidZip") + ": " + ex.getMessage());
+            host.notifications().toast(this, SkNotification.Type.ERROR, host.i18n().get("opb.deploy.invalidZip") + ": " + ex.getMessage());
         }
     }
 
@@ -178,7 +177,7 @@ public class DeployPanel extends CommandPanel {
         DeployTarget target;
         if (rbVenv.isSelected()) {
             String p = venvPath.getText().trim();
-            if (p.isBlank()) { GlassNotification.toast(this, GlassNotification.Type.WARNING, "请填写虚拟环境路径"); return; }
+            if (p.isBlank()) { host.notifications().toast(this, SkNotification.Type.WARNING, "请填写虚拟环境路径"); return; }
             target = new DeployTarget.Venv(Path.of(detection.executable()), Path.of(p));
         } else {
             target = new DeployTarget.Global(Path.of(detection.executable()));
@@ -190,36 +189,29 @@ public class DeployPanel extends CommandPanel {
         logArea.setVisible(true);
         logArea.setManaged(true);
 
-        PluginTask<DeployResult> task = new PluginTask<>() {
-            @Override protected DeployResult call() throws Exception {
-                return new DeployService().install(selectedZip, target, line -> {
-                    log.log(line);
-                    javafx.application.Platform.runLater(() -> logArea.appendText(line + "\n"));
-                });
-            }
-        };
-        task.setOnSucceeded(e -> Platform.runLater(() -> {
-            DeployResult r = task.getValue();
-            progress.setProgress(1);
-            installBtn.setDisable(false);
-            if (r.ok()) {
-                GlassNotification.toast(this, GlassNotification.Type.SUCCESS,
-                        java.text.MessageFormat.format(I18n.get("opb.deploy.done"), r.installed()));
-            } else {
-                GlassNotification.toast(this, GlassNotification.Type.WARNING,
-                        java.text.MessageFormat.format(I18n.get("opb.deploy.partial"), r.installed(), r.failed()));
-            }
-        }));
-        task.setOnFailed(e -> Platform.runLater(() -> {
-            log.log("ERROR: " + task.getException().getMessage());
-            logArea.appendText("ERROR: " + task.getException().getMessage() + "\n");
-            GlassNotification.toast(this, GlassNotification.Type.ERROR, I18n.get("opb.deploy.failed"));
-            installBtn.setDisable(false);
-        }));
-        Thread t = new Thread(task, "OfflinePython-Deploy");
-        t.setDaemon(true);
-        t.start();
+        host.tasks().submit("opb-deploy",
+            () -> new DeployService().install(selectedZip, target, line -> {
+                log.log(line);
+                Platform.runLater(() -> logArea.appendText(line + "\n"));
+            }),
+            r -> {  // FX thread
+                progress.setProgress(1);
+                installBtn.setDisable(false);
+                if (r.ok()) {
+                    host.notifications().toast(this, SkNotification.Type.SUCCESS,
+                            java.text.MessageFormat.format(host.i18n().get("opb.deploy.done"), r.installed()));
+                } else {
+                    host.notifications().toast(this, SkNotification.Type.WARNING,
+                            java.text.MessageFormat.format(host.i18n().get("opb.deploy.partial"), r.installed(), r.failed()));
+                }
+            },
+            error -> {  // FX thread
+                log.log("ERROR: " + error.getMessage());
+                logArea.appendText("ERROR: " + error.getMessage() + "\n");
+                host.notifications().toast(this, SkNotification.Type.ERROR, host.i18n().get("opb.deploy.failed"));
+                installBtn.setDisable(false);
+            });
     }
 
-    @Override public String title() { return I18n.get("opb.deploy.title"); }
+    @Override public String title() { return host.i18n().get("opb.deploy.title"); }
 }

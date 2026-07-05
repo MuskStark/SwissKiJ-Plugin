@@ -1,7 +1,7 @@
 package plugin.swisskit.offlinepython.ui.panel;
 
 import fan.summer.api.component.UiUtils;
-import fan.summer.api.i18n.I18n;
+import fan.summer.api.host.PluginHost;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
@@ -14,9 +14,9 @@ import plugin.swisskit.offlinepython.ui.control.PanelHeader;
 public class DoctorPanel extends CommandPanel {
     private final GridPane grid = new GridPane();
 
-    public DoctorPanel(OpbLogger log, ProjectContext project) {
-        super(log, project);
-        PanelHeader header = new PanelHeader(I18n.get("opb.doctor.title"));
+    public DoctorPanel(OpbLogger log, ProjectContext project, PluginHost host) {
+        super(log, project, host);
+        PanelHeader header = new PanelHeader(host.i18n().get("opb.doctor.title"));
         Button run = UiUtils.glassBtn("▶ 运行诊断", true);
         header.addActions(run);
         getChildren().add(header);
@@ -41,5 +41,5 @@ public class DoctorPanel extends CommandPanel {
         getChildren().add(grid);
     }
 
-    @Override public String title() { return I18n.get("opb.doctor.title"); }
+    @Override public String title() { return host.i18n().get("opb.doctor.title"); }
 }

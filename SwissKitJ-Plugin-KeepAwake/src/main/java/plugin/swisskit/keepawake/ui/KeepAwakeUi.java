@@ -1,6 +1,6 @@
 package plugin.swisskit.keepawake.ui;
 
-import fan.summer.api.i18n.I18n;
+import fan.summer.api.host.PluginHost;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.animation.TranslateTransition;
@@ -24,6 +24,9 @@ import plugin.swisskit.keepawake.service.KeepAwakeService;
  */
 public class KeepAwakeUi {
 
+    /** Settings key for the persisted "use System API vs mouse simulation" preference. */
+    private static final String SETTING_USE_SYSTEM_API = "useSystemApi";
+
     /** SwissKitJ design tokens (looked-up colors — resolve per-theme on the scene root). */
     private static final String BG            = "-sk-bg";
     private static final String CARD_BG       = "-sk-bg-elevated";
@@ -37,6 +40,7 @@ public class KeepAwakeUi {
     private static final String DANGER        = "-sk-danger";
 
     private final KeepAwakeService service = KeepAwakeService.getInstance();
+    private final PluginHost host;
     private final VBox root = new VBox();
     private final Label statusValue = new Label();
     private final Label methodValue = new Label();
@@ -48,7 +52,8 @@ public class KeepAwakeUi {
     private Timeline timer;
     private Timeline blinkTimer;
 
-    public KeepAwakeUi() {
+    public KeepAwakeUi(PluginHost host) {
+        this.host = host;
         initComponents();
     }
 
@@ -92,6 +97,10 @@ public class KeepAwakeUi {
     }
 
     private void initComponents() {
+        // Restore the persisted mode preference (namespaced by pluginId via host.settings()).
+        String saved = host.settings().get(SETTING_USE_SYSTEM_API, "true");
+        service.setUseSystemApi("true".equals(saved));
+
         root.setStyle("-fx-background-color: " + BG + "; -fx-background-radius: 8;");
         root.setPadding(new Insets(20));
         root.setSpacing(0);
@@ -136,8 +145,8 @@ public class KeepAwakeUi {
         startButton.getStyleClass().add("sk-btn-primary");
         stopButton.getStyleClass().add("sk-btn-secondary");
 
-        I18n.bind(startButton.textProperty(), p + "start");
-        I18n.bind(stopButton.textProperty(), p + "stop");
+        host.i18n().bind(startButton.textProperty(), p + "start");
+        host.i18n().bind(stopButton.textProperty(), p + "stop");
 
         HBox buttonRow = new HBox(10, startButton, stopButton);
         buttonRow.setAlignment(Pos.CENTER);
@@ -147,7 +156,7 @@ public class KeepAwakeUi {
         Label toggleLabel = new Label();
         toggleLabel.getStyleClass().add("sk-t3");
         toggleLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
-        I18n.bind(toggleLabel.textProperty(), p + "toggleLabel");
+        host.i18n().bind(toggleLabel.textProperty(), p + "toggleLabel");
 
         HBox toggleRow = new HBox(12, toggleLabel, methodToggle);
         toggleRow.setAlignment(Pos.CENTER);
@@ -164,7 +173,7 @@ public class KeepAwakeUi {
 
         // Sync with singleton state on first creation
         resumeUi();
-        I18n.addListener(this::refreshDisplay);
+        host.i18n().addListener(this::refreshDisplay);
     }
 
     private Node divider() {
@@ -218,22 +227,22 @@ public class KeepAwakeUi {
         dotIndicator.getChildren().clear();
 
         if (!service.isRunning()) {
-            statusValue.setText(I18n.get(p + "stopped"));
+            statusValue.setText(host.i18n().get(p + "stopped"));
             statusValue.getStyleClass().setAll("sk-danger-text");
             statusValue.setStyle("-fx-font-weight: bold;");
-            methodValue.setText(I18n.get(p + "methodNone"));
+            methodValue.setText(host.i18n().get(p + "methodNone"));
             methodValue.getStyleClass().setAll("sk-t2");
             methodValue.setStyle("");
             elapsedValue.setText("00:00:00");
             return;
         }
 
-        statusValue.setText(I18n.get(p + "running"));
+        statusValue.setText(host.i18n().get(p + "running"));
         statusValue.getStyleClass().setAll("sk-success-text");
         statusValue.setStyle("-fx-font-weight: bold;");
 
         String methodKey = service.isSystemApi() ? p + "methodSystem" : p + "methodMouse";
-        methodValue.setText(I18n.get(methodKey));
+        methodValue.setText(host.i18n().get(methodKey));
         methodValue.getStyleClass().setAll("sk-t1");
         methodValue.setStyle("");
 
@@ -294,8 +303,8 @@ public class KeepAwakeUi {
             StackPane.setAlignment(pill, Pos.TOP_LEFT);
 
             // ── Options (z-index above pill) ──
-            I18n.bind(optMouse.textProperty(), p + "toggleMouse");
-            I18n.bind(optApi.textProperty(), p + "toggleApi");
+            host.i18n().bind(optMouse.textProperty(), p + "toggleMouse");
+            host.i18n().bind(optApi.textProperty(), p + "toggleApi");
 
             optMouse.setPrefSize(OPT_W, PILL_H);
             optApi.setPrefSize(OPT_W, PILL_H);
@@ -310,7 +319,9 @@ public class KeepAwakeUi {
             // Click to toggle
             setOnMouseClicked(e -> {
                 if (service.isRunning()) return;
-                service.setUseSystemApi(!service.isUseSystemApi());
+                boolean next = !service.isUseSystemApi();
+                service.setUseSystemApi(next);
+                host.settings().put(SETTING_USE_SYSTEM_API, String.valueOf(next));
                 animatePill();
             });
 

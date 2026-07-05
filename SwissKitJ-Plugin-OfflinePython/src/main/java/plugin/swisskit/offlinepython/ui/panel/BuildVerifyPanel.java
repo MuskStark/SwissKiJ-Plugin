@@ -1,8 +1,9 @@
 package plugin.swisskit.offlinepython.ui.panel;
 
-import fan.summer.api.component.GlassNotification;
+import fan.summer.api.component.SkNotification;
 import fan.summer.api.component.UiUtils;
-import fan.summer.api.i18n.I18n;
+import fan.summer.api.host.PluginHost;
+import fan.summer.api.host.TaskHandle;
 import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -30,7 +31,6 @@ import plugin.swisskit.offlinepython.domain.VerifyScope;
 import plugin.swisskit.offlinepython.infra.JsonStore;
 import plugin.swisskit.offlinepython.infra.OpbLogger;
 import plugin.swisskit.offlinepython.infra.ProcessRunner;
-import plugin.swisskit.offlinepython.task.PluginTask;
 import plugin.swisskit.offlinepython.ui.OpbStyle;
 import plugin.swisskit.offlinepython.ui.ProjectContext;
 import plugin.swisskit.offlinepython.ui.control.PanelHeader;
@@ -51,13 +51,13 @@ public class BuildVerifyPanel extends CommandPanel {
     private final ToggleGroup scopeGroup = new ToggleGroup();
     private final VBox report = new VBox(6);
     private final Label conclusion = new Label();
-    private PluginTask<BuildSummary> task;
+    private TaskHandle buildHandle;
     private ProcessRunner runner;
     private final Button packageBtn = UiUtils.glassBtn("📦 打包成 ZIP", false);
 
-    public BuildVerifyPanel(OpbLogger log, ProjectContext project) {
-        super(log, project);
-        PanelHeader header = new PanelHeader(I18n.get("opb.build.title"));
+    public BuildVerifyPanel(OpbLogger log, ProjectContext project, PluginHost host) {
+        super(log, project, host);
+        PanelHeader header = new PanelHeader(host.i18n().get("opb.build.title"));
         getChildren().add(header);
 
         // ── 构建区 ──
@@ -172,7 +172,7 @@ public class BuildVerifyPanel extends CommandPanel {
     private void start() {
         if (isRunning()) return;
         Path dir = project.getProjectDir();
-        if (dir == null) { GlassNotification.toast(this, GlassNotification.Type.WARNING, "先打开或新建项目"); return; }
+        if (dir == null) { host.notifications().toast(this, SkNotification.Type.WARNING, "先打开或新建项目"); return; }
         // 把选中的 Python 版本写回 config(影响 pip --python-version + wheelhouse 路径)
         String pyVer = pyVersionCombo.getValue();
         if (pyVer != null && !pyVer.isBlank() && project.getConfig() != null) {
@@ -183,66 +183,58 @@ public class BuildVerifyPanel extends CommandPanel {
         progress.setProgress(0);
         progress.getStyleClass().removeAll("success", "danger");
         runner = new ProcessRunner();
-        task = new PluginTask<>() {
-            @Override protected BuildSummary call() throws Exception {
+        buildHandle = host.tasks().submit("opb-build",
+            () -> {
                 BuildConfig cfg = JsonStore.load(dir.resolve("config.json"), BuildConfig.class);
                 var det = plugin.swisskit.offlinepython.infra.PythonDetector.detect(cfg.getPython().getExecutable());
                 if (!det.ok()) throw new IllegalStateException("未检测到 Python — 请先安装");
                 return new BuildService().build(dir, cfg, det.executable(),
                         line -> { log.log(line); updateProgressApprox(); }, runner);
-            }
-        };
-        task.setOnSucceeded(e -> Platform.runLater(() -> {
-            BuildSummary s = task.getValue();
-            renderTiles(s);
-            log.log("构建完成:" + s.totalWheels() + " wheels · " + humanBytes(s.totalBytes())
-                    + " · 耗时 " + (s.durationMs() / 1000) + "s · 缓存命中 " + s.cacheHits());
-            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "构建完成");
-            progress.setProgress(1);
-            progress.getStyleClass().add("success");
-            build.setDisable(false);
-            packageBtn.setVisible(true);
-            packageBtn.setManaged(true);
-            // 自动打包
-            if (project.getConfig() != null && project.getConfig().getBundle() != null
-                    && project.getConfig().getBundle().isAutoPackage()) {
-                runPackage();
-            }
-        }));
-        task.setOnFailed(e -> Platform.runLater(() -> {
-            log.log("ERROR: " + task.getException().getMessage());
-            GlassNotification.toast(this, GlassNotification.Type.ERROR, "构建失败");
-            progress.setProgress(0);
-            progress.getStyleClass().add("danger");
-            build.setDisable(false);
-        }));
-        Thread t = new Thread(task, "OfflinePython-Build");
-        t.setDaemon(true);
-        t.start();
+            },
+            s -> {  // FX thread
+                renderTiles(s);
+                log.log("构建完成:" + s.totalWheels() + " wheels · " + humanBytes(s.totalBytes())
+                        + " · 耗时 " + (s.durationMs() / 1000) + "s · 缓存命中 " + s.cacheHits());
+                host.notifications().toast(this, SkNotification.Type.SUCCESS, "构建完成");
+                progress.setProgress(1);
+                progress.getStyleClass().add("success");
+                build.setDisable(false);
+                packageBtn.setVisible(true);
+                packageBtn.setManaged(true);
+                // 自动打包
+                if (project.getConfig() != null && project.getConfig().getBundle() != null
+                        && project.getConfig().getBundle().isAutoPackage()) {
+                    runPackage();
+                }
+            },
+            error -> {  // FX thread
+                log.log("ERROR: " + error.getMessage());
+                host.notifications().toast(this, SkNotification.Type.ERROR, "构建失败");
+                progress.setProgress(0);
+                progress.getStyleClass().add("danger");
+                build.setDisable(false);
+            });
     }
 
     private void runPackage() {
         Path dir = project.getProjectDir();
         if (dir == null) return;
         packageBtn.setDisable(true);
-        PluginTask<Path> t = new PluginTask<>() {
-            @Override protected Path call() throws Exception {
+        host.tasks().submit("opb-package",
+            () -> {
                 BuildConfig cfg = JsonStore.load(dir.resolve("config.json"), BuildConfig.class);
                 return new PackageService(log).packageBundle(dir, cfg);
-            }
-        };
-        t.setOnSucceeded(e -> Platform.runLater(() -> {
-            Path zip = t.getValue();
-            log.log("打包完成: " + zip);
-            GlassNotification.toast(this, GlassNotification.Type.SUCCESS, "已打包: " + zip.getFileName());
-            packageBtn.setDisable(false);
-        }));
-        t.setOnFailed(e -> Platform.runLater(() -> {
-            log.log("打包失败: " + t.getException().getMessage());
-            GlassNotification.toast(this, GlassNotification.Type.ERROR, "打包失败");
-            packageBtn.setDisable(false);
-        }));
-        new Thread(t, "OfflinePython-Package").start();
+            },
+            zip -> {  // FX thread
+                log.log("打包完成: " + zip);
+                host.notifications().toast(this, SkNotification.Type.SUCCESS, "已打包: " + zip.getFileName());
+                packageBtn.setDisable(false);
+            },
+            error -> {  // FX thread
+                log.log("打包失败: " + error.getMessage());
+                host.notifications().toast(this, SkNotification.Type.ERROR, "打包失败");
+                packageBtn.setDisable(false);
+            });
     }
 
     /** 构建中粗略推进进度条(每个 pip 日志行推进一点,封顶 95%)。 */
@@ -271,14 +263,14 @@ public class BuildVerifyPanel extends CommandPanel {
 
     private void doVerify() {
         Path dir = project.getProjectDir();
-        if (dir == null) { GlassNotification.toast(this, GlassNotification.Type.WARNING, "先打开或新建项目"); return; }
+        if (dir == null) { host.notifications().toast(this, SkNotification.Type.WARNING, "先打开或新建项目"); return; }
         try {
             Manifest m = JsonStore.load(dir.resolve("manifest.json"), Manifest.class);
             VerifyResult r = new VerifyService().verify(dir, m, selectedScope());
             render(r);
         } catch (Exception ex) {
             log.log("校验失败: " + ex.getMessage());
-            GlassNotification.toast(this, GlassNotification.Type.ERROR, "校验失败(未构建?)");
+            host.notifications().toast(this, SkNotification.Type.ERROR, "校验失败(未构建?)");
         }
     }
 
@@ -323,9 +315,9 @@ public class BuildVerifyPanel extends CommandPanel {
 
     public void cancel() {
         if (runner != null) runner.cancel();
-        if (task != null) task.cancel(false);
+        if (buildHandle != null) buildHandle.cancel();
     }
-    public boolean isRunning() { return task != null && task.isRunningTask(); }
+    public boolean isRunning() { return buildHandle != null && buildHandle.isRunning(); }
 
-    @Override public String title() { return I18n.get("opb.build.title"); }
+    @Override public String title() { return host.i18n().get("opb.build.title"); }
 }

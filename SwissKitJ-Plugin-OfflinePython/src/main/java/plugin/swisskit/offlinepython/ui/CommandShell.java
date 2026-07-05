@@ -1,8 +1,8 @@
 package plugin.swisskit.offlinepython.ui;
 
 import fan.summer.api.MdiIconUtil;
-import fan.summer.api.component.GlassNotification;
-import fan.summer.api.i18n.I18n;
+import fan.summer.api.component.SkNotification;
+import fan.summer.api.host.PluginHost;
 import fan.summer.api.theme.Themes;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Pos;
@@ -43,7 +43,8 @@ import java.util.Map;
 public class CommandShell {
     private final BorderPane root = new BorderPane();
     private final VBox contentWrap = new VBox();
-    private final OpbLogger logger = new OpbLogger();
+    private final PluginHost host;
+    private final OpbLogger logger;
     private final Label pyBadge = new Label();
     private final ProjectContext project = new ProjectContext();
     private final ProjectSwitcher switcher = new ProjectSwitcher();
@@ -54,13 +55,15 @@ public class CommandShell {
     private BuildVerifyPanel buildVerifyPanel;
     private DeployPanel deployPanel;
 
-    public CommandShell() {
+    public CommandShell(PluginHost host) {
+        this.host = host;
+        this.logger = new OpbLogger(host.logger(CommandShell.class));
         root.getStylesheets().add(Themes.commonStylesheetUrl());
         root.setStyle("-fx-background-color: transparent;");
-        navLabels.put("config",   I18n.get("opb.nav.config"));
-        navLabels.put("build",    I18n.get("opb.nav.build"));
-        navLabels.put("doctor",   I18n.get("opb.nav.doctor"));
-        navLabels.put("deploy",   I18n.get("opb.nav.deploy"));
+        navLabels.put("config",   host.i18n().get("opb.nav.config"));
+        navLabels.put("build",    host.i18n().get("opb.nav.build"));
+        navLabels.put("doctor",   host.i18n().get("opb.nav.doctor"));
+        navLabels.put("deploy",   host.i18n().get("opb.nav.deploy"));
 
         root.setTop(buildTopBar());
         root.setLeft(buildNav());
@@ -150,17 +153,17 @@ public class CommandShell {
         current = key;
         navButtons.forEach((k, b) -> applyNavStyle(b, k.equals(key), false));
         Node panel = switch (key) {
-            case "config"  -> configPanel != null ? configPanel : (configPanel = new ConfigPanel(logger, project, this::openExisting, this::createNew, this::closeProject, () -> select("build")));
+            case "config"  -> configPanel != null ? configPanel : (configPanel = new ConfigPanel(logger, project, host, this::openExisting, this::createNew, this::closeProject, () -> select("build")));
             case "build"   -> {
-                if (buildVerifyPanel == null) buildVerifyPanel = new BuildVerifyPanel(logger, project);
+                if (buildVerifyPanel == null) buildVerifyPanel = new BuildVerifyPanel(logger, project, host);
                 buildVerifyPanel.onShow();  // 每次进入都刷新依赖数/配置(可能刚在 config 页保存)
                 yield buildVerifyPanel;
             }
             case "deploy"  -> {
-                if (deployPanel == null) deployPanel = new DeployPanel(logger);
+                if (deployPanel == null) deployPanel = new DeployPanel(logger, host);
                 yield deployPanel;
             }
-            case "doctor"  -> new DoctorPanel(logger, project);
+            case "doctor"  -> new DoctorPanel(logger, project, host);
             default -> new Label("—");
         };
         contentWrap.getChildren().setAll(panel);
@@ -191,11 +194,11 @@ public class CommandShell {
             logger.setLogFile(dir.toPath().resolve(".offline-python.log"));
             switcher.updateName(dir.getName());
             logger.log("已新建项目: " + dir);
-            GlassNotification.toast(root, GlassNotification.Type.SUCCESS, "项目已初始化");
+            host.notifications().toast(root, SkNotification.Type.SUCCESS, "项目已初始化");
             if (configPanel != null) configPanel.reload();
             buildVerifyPanel = null;
         } catch (Exception e) {
-            GlassNotification.toast(root, GlassNotification.Type.ERROR, "新建失败");
+            host.notifications().toast(root, SkNotification.Type.ERROR, "新建失败");
         }
     }
 
@@ -227,11 +230,11 @@ public class CommandShell {
         var d = PythonDetector.detect(project.getConfig() != null ? project.getConfig().getPython().getExecutable() : null);
         boolean ok = d.ok();
         pyBadge.setText(ok
-                ? I18n.get("opb.python.detected", d.pythonVersion(), d.pipVersion() == null ? "?" : d.pipVersion())
-                : I18n.get("opb.python.missing"));
+                ? host.i18n().get("opb.python.detected", d.pythonVersion(), d.pipVersion() == null ? "?" : d.pipVersion())
+                : host.i18n().get("opb.python.missing"));
         pyBadge.setStyle("-fx-cursor: hand;" + OpbStyle.badge(ok));
         if (!ok && !"config".equals(current)) {
-            contentWrap.getChildren().setAll(new PythonInstallGuide(this::refreshPython));
+            contentWrap.getChildren().setAll(new PythonInstallGuide(host, this::refreshPython));
         }
     }
 

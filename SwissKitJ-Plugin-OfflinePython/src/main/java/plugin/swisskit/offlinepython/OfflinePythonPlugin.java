@@ -3,17 +3,23 @@ package plugin.swisskit.offlinepython;
 import fan.summer.api.IconStyle;
 import fan.summer.api.SwissKitJPlugin;
 import fan.summer.api.ToolCategory;
-import fan.summer.api.i18n.I18n;
+import fan.summer.api.host.PluginHost;
 import javafx.scene.Node;
 import plugin.swisskit.offlinepython.ui.CommandShell;
 
 public class OfflinePythonPlugin implements SwissKitJPlugin {
 
+    private PluginHost host;
     private CommandShell shell;
 
+    @Override
+    public void init(PluginHost host) {
+        this.host = host;
+    }
+
     @Override public String getId()          { return "plugin.swisskit.offlinepython"; }
-    @Override public String getName()        { return I18n.get("opb.name"); }
-    @Override public String getDescription() { return I18n.get("opb.desc"); }
+    @Override public String getName()        { return host.i18n().get("opb.name"); }
+    @Override public String getDescription() { return host.i18n().get("opb.desc"); }
     @Override public ToolCategory getCategory() { return ToolCategory.DEV; }
     @Override public String getVersion()     { return "1.0.0"; }
     @Override public String getMdiIcon()     { return "language-python"; }
@@ -21,8 +27,8 @@ public class OfflinePythonPlugin implements SwissKitJPlugin {
 
     @Override
     public Node createView() {
-        I18n.registerPluginBundle("i18n.messages", getClass().getClassLoader());
-        shell = new CommandShell();
+        host.i18n().registerBundle("i18n.messages");
+        shell = new CommandShell(host);
         return shell.getView();
     }
 
